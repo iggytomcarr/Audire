@@ -45,7 +45,7 @@ export default function App() {
                     {/* Brand */}
                     <div className="flex items-center gap-3">
                         <img src={logo} alt="logo" className="h-8 w-8 rounded-lg shadow" />
-                        <div className="text-lg font-semibold tracking-wide">Harmonia</div>
+                        <div className="text-lg font-semibold tracking-wide">Audire Music Player</div>
                     </div>
 
                     {/* Search */}
@@ -88,27 +88,7 @@ export default function App() {
                 </div>
             </header>
 
-            {/* Greeting Strip (Wails demo) */}
-            <section className="mx-auto max-w-7xl px-4 py-4">
-                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-                    <div className="text-sm text-slate-300">{resultText}</div>
-                    <div className="ml-auto flex items-center gap-2">
-                        <input
-                            id="name"
-                            name="input"
-                            autoComplete="off"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-48 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-400"
-                            placeholder="Your name"
-                            type="text"
-                        />
-                        <button onClick={greet} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow transition hover:bg-indigo-400">
-                            Greet
-                        </button>
-                    </div>
-                </div>
-            </section>
+
 
             {/* Content */}
             <main className="mx-auto w-full max-w-7xl px-4 pb-24">
