@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App-specific extras */
+html, body, #App { height: 100%; }
+
+/* Optional: nicer range inputs across platforms */
+input[type="range"] { @apply accent-indigo-400; }
