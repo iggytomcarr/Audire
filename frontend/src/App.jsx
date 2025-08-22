@@ -1,13 +1,26 @@
 // /frontend/src/App.jsx
-import { useMemo, useState } from "react";
-import logo from "./assets/images/logo-universal.png";
+import { useMemo, useState, useEffect } from "react";
+import logo from "./assets/images/audire_menu_logo.png";
 import { Greet } from "../wailsjs/go/main/App";
+import SettingsPage from "./SettingsPage";
+import AlbumDetailsPage from "./AlbumDetailsPage";
 
 export default function App() {
     const [resultText, setResultText] = useState("Please enter your name below 👇");
     const [name, setName] = useState("");
     const [query, setQuery] = useState("");
-    const [view, setView] = useState("grid"); // grid | compact
+    const [view, setView] = useState("grid"); // "grid" | "compact" | "settings" | "album"
+    const [folders, setFolders] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem("musicFolders") || "[]");
+        } catch {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem("musicFolders", JSON.stringify(folders));
+    }, [folders]);
 
     const albums = useMemo(
         () => [
@@ -44,8 +57,8 @@ export default function App() {
                 <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-3">
                     {/* Brand */}
                     <div className="flex items-center gap-3">
-                        <img src={logo} alt="logo" className="h-8 w-8 rounded-lg shadow" />
-                        <div className="text-lg font-semibold tracking-wide">Audire Music Player</div>
+                        <img src={logo} alt="logo" className="h-8 w-auto rounded-lg shadow" />
+                        {/*<div className="text-lg font-semibold tracking-wide">Audire Music Player</div>*/}
                     </div>
 
                     {/* Search */}
@@ -84,15 +97,36 @@ export default function App() {
                         >
                             List
                         </button>
+                        <button
+                            onClick={() => setView("settings")}
+                            className="rounded-lg border border-slate-800 px-3 py-2 text-sm transition hover:bg-slate-900"
+                            title="Settings"
+                            aria-label="Open Settings"
+                        >
+                            ⚙️ Settings
+                        </button>
+                        <button
+                            onClick={() => setView("album")}
+                            className="rounded-lg border border-slate-800 px-3 py-2 text-sm transition hover:bg-slate-900"
+                            title="Open Demo Album"
+                        >
+                            Demo Album
+                        </button>
                     </div>
                 </div>
             </header>
 
-
-
             {/* Content */}
             <main className="mx-auto w-full max-w-7xl px-4 pb-24">
-                {view === "grid" ? (
+                {view === "settings" ? (
+                    <SettingsPage
+                        folders={folders}
+                        setFolders={setFolders}
+                        onBack={() => setView("grid")}
+                    />
+                ) : view === "album" ? (
+                    <AlbumDetailsPage onBack={() => setView("grid")} />
+                ) : view === "grid" ? (
                     <section aria-label="Albums grid" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                         {filtered.map((a) => (
                             <article key={a.id} tabIndex={0} className="group outline-none">

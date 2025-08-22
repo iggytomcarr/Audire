@@ -1,8 +1,13 @@
-# README
+# Audire Media Player
 
 ## About
 
-This is the official Wails React template.
+Audire is a Minimalist Audio Player with Metadata. Built with Wails and Go.
+
+
+
+
+## How to run the project
 
 You can configure the project by editing `wails.json`. More information about the project settings can be found
 here: https://wails.io/docs/reference/project-config
