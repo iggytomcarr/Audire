@@ -1,15 +1,16 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect } from "react";
 import logo from "./assets/images/audire_menu_logo.png";
-import { Greet } from "../wailsjs/go/main/App";
 import SettingsPage from "./SettingsPage";
 import AlbumDetailsPage from "./AlbumDetailsPage";
+import { LoadEmbeddedAlbums, GetAlbums } from "../wailsjs/go/main/App";
 
 export default function App() {
     const [resultText, setResultText] = useState("Please enter your name below 👇");
     const [name, setName] = useState("");
     const [query, setQuery] = useState("");
     const [view, setView] = useState("grid"); // "grid" | "compact" | "settings" | "album"
+    const [loadedAlbums, setLoadedAlbums] = useState([]);
     const [folders, setFolders] = useState(() => {
         try {
             return JSON.parse(localStorage.getItem("musicFolders") || "[]");
@@ -22,21 +23,42 @@ export default function App() {
         localStorage.setItem("musicFolders", JSON.stringify(folders));
     }, [folders]);
 
-    const albums = useMemo(
-        () => [
-            { id: "1", title: "Midnight Drive", artist: "Neon Rivers", year: 2022, emoji: "🌌", colors: "from-slate-700 to-slate-900" },
-            { id: "2", title: "Analog Heart", artist: "Tape & Valve", year: 2019, emoji: "💚", colors: "from-emerald-700 to-teal-900" },
-            { id: "3", title: "Sunset Lines", artist: "Pacific Dreams", year: 2024, emoji: "🌇", colors: "from-violet-600 to-violet-900" },
-            { id: "4", title: "Room Tone", artist: "Lo-Fi Study", year: 2021, emoji: "📚", colors: "from-blue-900 to-slate-950" },
-            { id: "5", title: "Crystal Waves", artist: "Bitrate", year: 2020, emoji: "💎", colors: "from-blue-600 to-blue-900" },
-            { id: "6", title: "Afterlight", artist: "Night Arcade", year: 2023, emoji: "🌙", colors: "from-rose-700 to-rose-900" },
-            { id: "7", title: "Golden Hour", artist: "Aurora", year: 2018, emoji: "🌅", colors: "from-amber-700 to-amber-900" },
-            { id: "8", title: "Deep Fields", artist: "Parallax", year: 2025, emoji: "🛰️", colors: "from-green-700 to-emerald-900" },
-            { id: "9", title: "Nocturne", artist: "Cadence", year: 2017, emoji: "🎼", colors: "from-slate-600 to-slate-900" },
-            { id: "10", title: "Glass City", artist: "Vectors", year: 2020, emoji: "🏙️", colors: "from-sky-600 to-sky-900" },
-        ],
-        []
-    );
+    useEffect(() => {
+        const loadAlbums = async () => {
+            try {
+                await LoadEmbeddedAlbums();
+                const albums = await GetAlbums();
+                setLoadedAlbums(albums || []);
+            } catch (error) {
+                console.error("Failed to load albums:", error);
+            }
+        };
+        loadAlbums();
+    }, []);
+
+    // Convert backend albums to display format with fallback data
+    const albums = useMemo(() => {
+        return loadedAlbums.map((album, index) => ({
+            id: String(index + 1),
+            title: album.album || "Unknown Album",
+            artist: album.artist || "Unknown Artist",
+            year: album.release_date ? new Date(album.release_date).getFullYear() : "Unknown",
+
+
+            colors: [
+                "from-slate-700 to-slate-900",
+                "from-emerald-700 to-teal-900",
+                "from-violet-600 to-violet-900",
+                "from-blue-900 to-slate-950",
+                "from-blue-600 to-blue-900",
+                "from-rose-700 to-rose-900",
+                "from-amber-700 to-amber-900",
+                "from-green-700 to-emerald-900",
+                "from-slate-600 to-slate-900",
+                "from-sky-600 to-sky-900"
+            ][index % 10]
+        }));
+    }, [loadedAlbums]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -46,9 +68,8 @@ export default function App() {
         );
     }, [albums, query]);
 
-    function greet() {
-        Greet(name).then((r) => setResultText(r));
-    }
+
+
 
     return (
         <div id="App" className="min-h-dvh bg-slate-950 text-slate-100 selection:bg-indigo-500/30">
@@ -134,7 +155,7 @@ export default function App() {
                                     className={`relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br ${a.colors} shadow-lg ring-1 ring-slate-900/40`}
                                     aria-label={`${a.title} by ${a.artist}`}
                                 >
-                                    <span className="absolute left-2 top-2 text-xl drop-shadow">{a.emoji}</span>
+                                   
                                     <button
                                         className="absolute bottom-2 right-2 inline-grid h-10 w-10 place-items-center rounded-full bg-slate-950/80 text-slate-100 opacity-0 shadow transition group-hover:opacity-100"
                                         title={`Play ${a.title}`}

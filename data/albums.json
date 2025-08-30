@@ -1,0 +1,341 @@
+{
+  "albums": [
+    {
+      "artist": "Aphex Twin",
+      "album": "Selected Ambient Works 85-92",
+      "release_date": "1992-11-09",
+      "label": "Apollo Records",
+      "genre": ["Ambient", "IDM"],
+      "tracks": [
+        { "title": "Xtal", "duration": "4:51" },
+        { "title": "Tha", "duration": "9:01" },
+        { "title": "Pulsewidth", "duration": "3:47" },
+        { "title": "Ageispolis", "duration": "5:21" },
+        { "title": "i", "duration": "1:16" },
+        { "title": "Green Calx", "duration": "6:02" },
+        { "title": "Heliosphan", "duration": "4:52" },
+        { "title": "We Are the Music Makers", "duration": "7:42" },
+        { "title": "Schottkey 7th Path", "duration": "5:07" },
+        { "title": "Ptolemy", "duration": "7:12" },
+        { "title": "Hedphelym", "duration": "6:02" },
+        { "title": "Delphium", "duration": "5:35" },
+        { "title": "Actium", "duration": "7:35" }
+      ]
+    },
+    {
+      "artist": "Aphex Twin",
+      "album": "Selected Ambient Works Volume II",
+      "release_date": "1994-03-07",
+      "label": "Warp Records",
+      "genre": ["Ambient", "IDM"],
+      "tracks": [
+        { "title": "Cliffs", "duration": "7:18" },
+        { "title": "Radiator", "duration": "6:32" },
+        { "title": "Rhubarb", "duration": "7:44" },
+        { "title": "Hankie", "duration": "4:39" },
+        { "title": "Grass", "duration": "7:27" },
+        { "title": "Mould", "duration": "3:27" },
+        { "title": "Curtains", "duration": "7:15" },
+        { "title": "Blur", "duration": "5:05" },
+        { "title": "Weathered Stone", "duration": "7:36" },
+        { "title": "Tree", "duration": "9:57" }
+      ]
+    },
+    {
+      "artist": "Boards of Canada",
+      "album": "Music Has the Right to Children",
+      "release_date": "1998-04-20",
+      "label": "Warp Records",
+      "genre": ["IDM", "Ambient"],
+      "tracks": [
+        { "title": "Wildlife Analysis", "duration": "1:15" },
+        { "title": "An Eagle in Your Mind", "duration": "6:20" },
+        { "title": "The Color of the Fire", "duration": "1:45" },
+        { "title": "Telephasic Workshop", "duration": "6:35" },
+        { "title": "Triangles & Rhombuses", "duration": "1:50" },
+        { "title": "Sixtyten", "duration": "5:48" },
+        { "title": "Turquoise Hexagon Sun", "duration": "5:07" }
+      ]
+    },
+    {
+      "artist": "Boards of Canada",
+      "album": "Geogaddi",
+      "release_date": "2002-02-18",
+      "label": "Warp Records",
+      "genre": ["IDM", "Ambient", "Experimental"],
+      "tracks": [
+        { "title": "Ready Lets Go", "duration": "0:59" },
+        { "title": "Music Is Math", "duration": "5:20" },
+        { "title": "Beware the Friendly Stranger", "duration": "0:43" },
+        { "title": "Gyroscope", "duration": "3:35" },
+        { "title": "Dandelion", "duration": "1:22" }
+      ]
+    },
+    {
+      "artist": "Autechre",
+      "album": "Amber",
+      "release_date": "1994-11-07",
+      "label": "Warp Records",
+      "genre": ["IDM", "Ambient Techno"],
+      "tracks": [
+        { "title": "Foil", "duration": "6:04" },
+        { "title": "Montreal", "duration": "7:19" },
+        { "title": "Silverside", "duration": "6:52" }
+      ]
+    },
+    {
+      "artist": "Autechre",
+      "album": "Tri Repetae",
+      "release_date": "1995-11-06",
+      "label": "Warp Records",
+      "genre": ["IDM"],
+      "tracks": [
+        { "title": "Dael", "duration": "6:39" },
+        { "title": "Clipper", "duration": "8:33" },
+        { "title": "Leterel", "duration": "7:08" }
+      ]
+    },
+    {
+      "artist": "Brian Eno",
+      "album": "Ambient 1: Music for Airports",
+      "release_date": "1978-03-01",
+      "label": "Editions EG",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "1/1", "duration": "17:21" },
+        { "title": "2/1", "duration": "8:49" }
+      ]
+    },
+    {
+      "artist": "Brian Eno",
+      "album": "Ambient 4: On Land",
+      "release_date": "1982-03-01",
+      "label": "Editions EG",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "Lizard Point", "duration": "4:34" },
+        { "title": "The Lost Day", "duration": "9:15" }
+      ]
+    },
+    {
+      "artist": "Gas",
+      "album": "Pop",
+      "release_date": "2000-04-28",
+      "label": "Mille Plateaux",
+      "genre": ["Ambient", "Minimal Techno"],
+      "tracks": [
+        { "title": "Pop 1", "duration": "6:33" },
+        { "title": "Pop 2", "duration": "6:38" }
+      ]
+    },
+    {
+      "artist": "Gas",
+      "album": "Zauberberg",
+      "release_date": "1997-02-01",
+      "label": "Mille Plateaux",
+      "genre": ["Ambient", "Minimal Techno"],
+      "tracks": [
+        { "title": "Zauberberg 1", "duration": "6:28" },
+        { "title": "Zauberberg 2", "duration": "7:01" }
+      ]
+    },
+    {
+      "artist": "Oval",
+      "album": "94diskont",
+      "release_date": "1995-01-01",
+      "label": "Mille Plateaux",
+      "genre": ["IDM", "Glitch", "Ambient"],
+      "tracks": [
+        { "title": "Do While", "duration": "24:04" },
+        { "title": "House", "duration": "4:53" }
+      ]
+    },
+    {
+      "artist": "The Orb",
+      "album": "Adventures Beyond the Ultraworld",
+      "release_date": "1991-04-30",
+      "label": "Big Life",
+      "genre": ["Ambient House"],
+      "tracks": [
+        { "title": "Little Fluffy Clouds", "duration": "4:27" },
+        { "title": "Earth (Gaia)", "duration": "9:01" }
+      ]
+    },
+    {
+      "artist": "The Orb",
+      "album": "U.F.Orb",
+      "release_date": "1992-07-06",
+      "label": "Big Life",
+      "genre": ["Ambient House"],
+      "tracks": [
+        { "title": "O.O.B.E.", "duration": "12:57" },
+        { "title": "Blue Room", "duration": "39:58" }
+      ]
+    },
+    {
+      "artist": "Seefeel",
+      "album": "Quique",
+      "release_date": "1993-10-25",
+      "label": "Too Pure",
+      "genre": ["Ambient Techno", "IDM"],
+      "tracks": [
+        { "title": "Climactic Phase #3", "duration": "8:21" },
+        { "title": "Polyfusion", "duration": "6:23" }
+      ]
+    },
+    {
+      "artist": "Global Communication",
+      "album": "76:14",
+      "release_date": "1994-06-01",
+      "label": "Dedicated",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "4:02", "duration": "4:02" },
+        { "title": "14:31", "duration": "14:31" }
+      ]
+    },
+    {
+      "artist": "Loscil",
+      "album": "Plume",
+      "release_date": "2006-09-12",
+      "label": "Kranky",
+      "genre": ["Ambient", "Drone"],
+      "tracks": [
+        { "title": "Motoc", "duration": "6:21" },
+        { "title": "Rorschach", "duration": "7:42" }
+      ]
+    },
+    {
+      "artist": "Loscil",
+      "album": "Submers",
+      "release_date": "2002-11-19",
+      "label": "Kranky",
+      "genre": ["Ambient", "Drone"],
+      "tracks": [
+        { "title": "Submers", "duration": "6:58" },
+        { "title": "Mute", "duration": "7:41" }
+      ]
+    },
+    {
+      "artist": "Tangerine Dream",
+      "album": "Phaedra",
+      "release_date": "1974-02-20",
+      "label": "Virgin Records",
+      "genre": ["Ambient", "Berlin School"],
+      "tracks": [
+        { "title": "Phaedra", "duration": "17:39" },
+        { "title": "Mysterious Semblance at the Strand of Nightmares", "duration": "9:36" }
+      ]
+    },
+    {
+      "artist": "Tangerine Dream",
+      "album": "Rubycon",
+      "release_date": "1975-03-21",
+      "label": "Virgin Records",
+      "genre": ["Ambient", "Berlin School"],
+      "tracks": [
+        { "title": "Rubycon, Part One", "duration": "17:18" },
+        { "title": "Rubycon, Part Two", "duration": "17:35" }
+      ]
+    },
+    {
+      "artist": "Stars of the Lid",
+      "album": "And Their Refinement of the Decline",
+      "release_date": "2007-04-02",
+      "label": "Kranky",
+      "genre": ["Ambient", "Drone"],
+      "tracks": [
+        { "title": "Dungtitled (In A Major)", "duration": "5:55" },
+        { "title": "Articulate Silences Part 1", "duration": "5:37" }
+      ]
+    },
+    {
+      "artist": "Stars of the Lid",
+      "album": "The Tired Sounds of Stars of the Lid",
+      "release_date": "2001-10-29",
+      "label": "Kranky",
+      "genre": ["Ambient", "Drone"],
+      "tracks": [
+        { "title": "Requiem for Dying Mothers, Part 1", "duration": "5:35" },
+        { "title": "Down 1", "duration": "9:21" }
+      ]
+    },
+    {
+      "artist": "Steve Roach",
+      "album": "Structures from Silence",
+      "release_date": "1984-01-01",
+      "label": "Fortuna Records",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "Reflections in Suspension", "duration": "16:46" },
+        { "title": "Quiet Friend", "duration": "13:23" }
+      ]
+    },
+    {
+      "artist": "Biosphere",
+      "album": "Substrata",
+      "release_date": "1997-06-23",
+      "label": "All Saints Records",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "As the Sun Kissed the Horizon", "duration": "1:47" },
+        { "title": "The Things I Tell You", "duration": "6:28" }
+      ]
+    },
+    {
+      "artist": "Biosphere",
+      "album": "Cirque",
+      "release_date": "2000-06-01",
+      "label": "Touch",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "Nook & Cranny", "duration": "5:59" },
+        { "title": "The Things I Tell You (Live)", "duration": "6:28" }
+      ]
+    },
+    {
+      "artist": "Fennesz",
+      "album": "Endless Summer",
+      "release_date": "2001-07-01",
+      "label": "Mego",
+      "genre": ["Ambient", "Glitch"],
+      "tracks": [
+        { "title": "Made in Hong Kong", "duration": "5:40" },
+        { "title": "Endless Summer", "duration": "4:00" }
+      ]
+    },
+    {
+      "artist": "Harold Budd & Brian Eno",
+      "album": "The Plateaux of Mirror",
+      "release_date": "1980-04-01",
+      "label": "Editions EG",
+      "genre": ["Ambient"],
+      "tracks": [
+        { "title": "First Light", "duration": "6:57" },
+        { "title": "Steal Away", "duration": "5:15" }
+      ]
+    },
+    {
+      "artist": "Tim Hecker",
+      "album": "Virgins",
+      "release_date": "2013-10-14",
+      "label": "Kranky",
+      "genre": ["Ambient", "Experimental"],
+      "tracks": [
+        { "title": "Prism", "duration": "3:23" },
+        { "title": "Virginal I", "duration": "6:16" }
+      ]
+    },
+    {
+      "artist": "Tim Hecker",
+      "album": "Harmony in Ultraviolet",
+      "release_date": "2006-10-16",
+      "label": "Kranky",
+      "genre": ["Ambient", "Drone"],
+      "tracks": [
+        { "title": "Harmony in Blue", "duration": "6:52" },
+        { "title": "Dungeoneering", "duration": "4:34" }
+      ]
+    }
+  ]
+}
