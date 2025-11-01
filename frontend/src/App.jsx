@@ -1,9 +1,10 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect } from "react";
 import logo from "./assets/images/audire_menu_logo.png";
-import SettingsPage from "./SettingsPage";
+
 import AlbumDetailsPage from "./AlbumDetailsPage";
-import { LoadEmbeddedAlbums, GetAlbums } from "../wailsjs/go/main/App";
+import SettingsPage from "./SettingsPage";
+import { LoadEmbeddedAlbums, GetAlbums, LoadMusicFolders, SaveMusicFolders } from "../wailsjs/go/main/App";
 
 export default function App() {
     const [resultText, setResultText] = useState("Please enter your name below 👇");
@@ -11,17 +12,41 @@ export default function App() {
     const [query, setQuery] = useState("");
     const [view, setView] = useState("grid"); // "grid" | "compact" | "settings" | "album"
     const [loadedAlbums, setLoadedAlbums] = useState([]);
-    const [folders, setFolders] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem("musicFolders") || "[]");
-        } catch {
-            return [];
-        }
-    });
+    const [folders, setFolders] = useState([]);
+    const [foldersLoaded, setFoldersLoaded] = useState(false);
+    const [selectedAlbum, setSelectedAlbum] = useState(null);
 
+    // Load music folders from backend on app start
     useEffect(() => {
-        localStorage.setItem("musicFolders", JSON.stringify(folders));
-    }, [folders]);
+        const loadFolders = async () => {
+            try {
+                const loadedFolders = await LoadMusicFolders();
+                setFolders(loadedFolders || []);
+                setFoldersLoaded(true);
+            } catch (error) {
+                console.error("Failed to load music folders:", error);
+                // Fallback to empty array
+                setFolders([]);
+                setFoldersLoaded(true);
+            }
+        };
+        loadFolders();
+    }, []);
+
+    // Save folders to backend whenever folders change (but only after initial load)
+    useEffect(() => {
+        if (!foldersLoaded) return; // Don't save during initial load
+
+        const saveFolders = async () => {
+            try {
+                await SaveMusicFolders(folders);
+                console.log("Music folders saved successfully");
+            } catch (error) {
+                console.error("Failed to save music folders:", error);
+            }
+        };
+        saveFolders();
+    }, [folders, foldersLoaded]);
 
     useEffect(() => {
         const loadAlbums = async () => {
@@ -43,8 +68,7 @@ export default function App() {
             title: album.album || "Unknown Album",
             artist: album.artist || "Unknown Artist",
             year: album.release_date ? new Date(album.release_date).getFullYear() : "Unknown",
-
-
+            rawAlbum: album, // Keep reference to original album data
             colors: [
                 "from-slate-700 to-slate-900",
                 "from-emerald-700 to-teal-900",
@@ -68,8 +92,11 @@ export default function App() {
         );
     }, [albums, query]);
 
-
-
+    // Function to handle album clicks
+    const handleAlbumClick = (album) => {
+        setSelectedAlbum(album);
+        setView("album");
+    };
 
     return (
         <div id="App" className="min-h-dvh bg-slate-950 text-slate-100 selection:bg-indigo-500/30">
@@ -126,13 +153,7 @@ export default function App() {
                         >
                             ⚙️ Settings
                         </button>
-                        <button
-                            onClick={() => setView("album")}
-                            className="rounded-lg border border-slate-800 px-3 py-2 text-sm transition hover:bg-slate-900"
-                            title="Open Demo Album"
-                        >
-                            Demo Album
-                        </button>
+                        
                     </div>
                 </div>
             </header>
@@ -145,20 +166,29 @@ export default function App() {
                         setFolders={setFolders}
                         onBack={() => setView("grid")}
                     />
-                ) : view === "album" ? (
-                    <AlbumDetailsPage onBack={() => setView("grid")} />
+                ) : view === "album" && selectedAlbum ? (
+                    <AlbumDetailsPage
+                        album={selectedAlbum}
+                        onBack={() => setView("grid")}
+                    />
                 ) : view === "grid" ? (
                     <section aria-label="Albums grid" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                         {filtered.map((a) => (
-                            <article key={a.id} tabIndex={0} className="group outline-none">
+                            <article
+                                key={a.id}
+                                tabIndex={0}
+                                className="group cursor-pointer outline-none"
+                                onClick={() => handleAlbumClick(a)}
+                            >
                                 <div
-                                    className={`relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br ${a.colors} shadow-lg ring-1 ring-slate-900/40`}
+                                    className={`relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br ${a.colors} shadow-lg ring-1 ring-slate-900/40 transition-transform group-hover:scale-105`}
                                     aria-label={`${a.title} by ${a.artist}`}
                                 >
-                                   
+
                                     <button
                                         className="absolute bottom-2 right-2 inline-grid h-10 w-10 place-items-center rounded-full bg-slate-950/80 text-slate-100 opacity-0 shadow transition group-hover:opacity-100"
                                         title={`Play ${a.title}`}
+                                        onClick={(e) => e.stopPropagation()}
                                     >
                                         ►
                                     </button>
@@ -173,7 +203,12 @@ export default function App() {
                 ) : (
                     <section aria-label="Albums list" className="grid gap-2">
                         {filtered.map((a) => (
-                            <div key={a.id} tabIndex={0} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-2 outline-none">
+                            <div
+                                key={a.id}
+                                tabIndex={0}
+                                className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-2 outline-none cursor-pointer hover:bg-slate-800/50 transition"
+                                onClick={() => handleAlbumClick(a)}
+                            >
                                 <div className={`relative h-12 w-12 overflow-hidden rounded-lg bg-gradient-to-br ${a.colors} ring-1 ring-slate-900/40`}>
                                     <span className="absolute left-1.5 top-1.5 text-base drop-shadow">{a.emoji}</span>
                                 </div>
@@ -183,8 +218,18 @@ export default function App() {
                                     <div className="text-right text-slate-400">{a.year}</div>
                                 </div>
                                 <div className="ml-2 inline-flex gap-2">
-                                    <button className="rounded-lg border border-slate-800 px-3 py-1 text-xs hover:bg-slate-900">Play</button>
-                                    <button className="rounded-lg border border-slate-800 px-3 py-1 text-xs hover:bg-slate-900">⋯</button>
+                                    <button
+                                        className="rounded-lg border border-slate-800 px-3 py-1 text-xs hover:bg-slate-900"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        Play
+                                    </button>
+                                    <button
+                                        className="rounded-lg border border-slate-800 px-3 py-1 text-xs hover:bg-slate-900"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        ⋯
+                                    </button>
                                 </div>
                             </div>
                         ))}

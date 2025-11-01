@@ -1,5 +1,6 @@
 // frontend/src/SettingsPage.jsx
 import React, { useState } from "react";
+import { SaveMusicFolders } from "../wailsjs/go/main/App";
 
 export default function SettingsPage({ folders, setFolders, onBack }) {
     const [newPath, setNewPath] = useState("");
@@ -7,6 +8,22 @@ export default function SettingsPage({ folders, setFolders, onBack }) {
     const [counts, setCounts] = useState({});
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+
+    // Manual save function (optional - for explicit save button)
+    async function handleSaveFolders() {
+        setIsSaving(true);
+        try {
+            await SaveMusicFolders(folders);
+            console.log("Folders saved successfully!");
+        } catch (error) {
+            console.error("Failed to save folders:", error);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
 
     function addFolder(path) {
         const p = path.trim();
@@ -73,6 +90,34 @@ export default function SettingsPage({ folders, setFolders, onBack }) {
 
     return (
         <section className="mx-auto w-full max-w-5xl py-6">
+            <div className="mb-4 flex items-center justify-between">
+                <h1 className="text-xl font-semibold">Settings</h1>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleSaveFolders}
+                        disabled={isSaving}
+                        className={`rounded-lg border px-3 py-2 text-sm transition ${
+                            isSaving
+                                ? "cursor-not-allowed border-slate-800 text-slate-500"
+                                : "border-slate-800 hover:bg-slate-900"
+                        }`}
+                    >
+                        {isSaving ? "Saving..." : "💾 Save"}
+                    </button>
+                    <button
+                        onClick={onBack}
+                        className="rounded-lg border border-slate-800 px-3 py-2 text-sm hover:bg-slate-900"
+                    >
+                        ← Back to Library
+                    </button>
+                </div>
+            </div>
+
+            <div className="mb-3 text-sm text-slate-300">
+                Configure folders to scan for music. These are saved as folders.json in your app data directory.
+            </div>
+
+
             <div className="mb-4 flex items-center justify-between">
                 <h1 className="text-xl font-semibold">Settings</h1>
                 <button
