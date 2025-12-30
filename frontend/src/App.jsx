@@ -1,5 +1,6 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect } from "react";
+import { SkipBack, Play, Pause, SkipForward } from "lucide-react";
 import logo from "./assets/images/audire_menu_logo.png";
 
 import AlbumDetailsPage from "./AlbumDetailsPage";
@@ -68,6 +69,7 @@ export default function App() {
             title: album.album || "Unknown Album",
             artist: album.artist || "Unknown Artist",
             year: album.release_date ? new Date(album.release_date).getFullYear() : "Unknown",
+            coverImage: album.cover_image || null,
             rawAlbum: album, // Keep reference to original album data
             colors: [
                 "from-slate-700 to-slate-900",
@@ -181,10 +183,16 @@ export default function App() {
                                 onClick={() => handleAlbumClick(a)}
                             >
                                 <div
-                                    className={`relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br ${a.colors} shadow-lg ring-1 ring-slate-900/40 transition-transform group-hover:scale-105`}
+                                    className={`relative aspect-square overflow-hidden rounded-2xl ${a.coverImage ? 'bg-slate-900' : `bg-gradient-to-br ${a.colors}`} shadow-lg ring-1 ring-slate-900/40 transition-transform group-hover:scale-105`}
                                     aria-label={`${a.title} by ${a.artist}`}
                                 >
-
+                                    {a.coverImage && (
+                                        <img
+                                            src={a.coverImage}
+                                            alt={`${a.title} cover`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    )}
                                     <button
                                         className="absolute bottom-2 right-2 inline-grid h-10 w-10 place-items-center rounded-full bg-slate-950/80 text-slate-100 opacity-0 shadow transition group-hover:opacity-100"
                                         title={`Play ${a.title}`}
@@ -209,8 +217,16 @@ export default function App() {
                                 className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-2 outline-none cursor-pointer hover:bg-slate-800/50 transition"
                                 onClick={() => handleAlbumClick(a)}
                             >
-                                <div className={`relative h-12 w-12 overflow-hidden rounded-lg bg-gradient-to-br ${a.colors} ring-1 ring-slate-900/40`}>
-                                    <span className="absolute left-1.5 top-1.5 text-base drop-shadow">{a.emoji}</span>
+                                <div className={`relative h-12 w-12 overflow-hidden rounded-lg ${a.coverImage ? 'bg-slate-900' : `bg-gradient-to-br ${a.colors}`} ring-1 ring-slate-900/40`}>
+                                    {a.coverImage ? (
+                                        <img
+                                            src={a.coverImage}
+                                            alt={`${a.title} cover`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="absolute left-1.5 top-1.5 text-base drop-shadow">{a.emoji}</span>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-[1.2fr_1fr_auto] items-center gap-2 text-sm">
                                     <div className="truncate font-medium">{a.title}</div>
@@ -248,9 +264,15 @@ export default function App() {
                         </div>
                     </div>
                     <div className="flex justify-center gap-2">
-                        <button className="rounded-lg border border-slate-800 px-3 py-2">⏮</button>
-                        <button className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-slate-950 shadow hover:bg-indigo-400">⏯</button>
-                        <button className="rounded-lg border border-slate-800 px-3 py-2">⏭</button>
+                        <button className="rounded-lg border border-slate-800 px-3 py-2 hover:bg-slate-800 transition">
+                            <SkipBack size={20} />
+                        </button>
+                        <button className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-slate-950 shadow hover:bg-indigo-400 transition">
+                            <Play size={20} fill="currentColor" />
+                        </button>
+                        <button className="rounded-lg border border-slate-800 px-3 py-2 hover:bg-slate-800 transition">
+                            <SkipForward size={20} />
+                        </button>
                     </div>
                     <div className="flex items-center gap-3 md:justify-end">
                         <span className="text-xs text-slate-400">0:00</span>

@@ -1,9 +1,12 @@
 // frontend/src/AlbumDetailsPage.jsx
 import React, { useMemo } from "react";
+import { Play } from "lucide-react";
+import { useAudioPlayer } from './AudioPlayerContext';
 //import cover from "./assets/images/mbid-38385642-1a00-4b08-9f41-f0545470263e-42465904052_thumb500.jpg";
 
 export default function AlbumDetailsPage({ album, onBack }) {
 
+    const { playTrack } = useAudioPlayer();
 // Calculate total duration of all tracks
     const totalDuration = useMemo(() => {
         if (!album?.rawAlbum?.tracks?.length) return "0:00";
@@ -69,9 +72,31 @@ export default function AlbumDetailsPage({ album, onBack }) {
                 </div>
 
                 <div className="space-y-4">
-                    <div>
-                        <h1 className="text-2xl font-bold">{rawAlbum.album || "Unknown Album"}</h1>
-                        <p className="text-slate-300">By {rawAlbum.artist || "Unknown Artist"}</p>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold">{rawAlbum.album || "Unknown Album"}</h1>
+                            <p className="text-slate-300">By {rawAlbum.artist || "Unknown Artist"}</p>
+                        </div>
+
+                        {/* Play Album Button */}
+                        <button
+                            className="flex items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg hover:bg-indigo-400 transition whitespace-nowrap"
+                            onClick={() => {
+                        // For now, create a mock track with a test file path
+                        // Later we'll replace this with real scanned files
+                        const firstTrack = {
+                            title: album.rawAlbum.tracks?.[0]?.title || 'Unknown',
+                            artist: album.artist,
+                            album: album.title,
+                            filePath: 'C:\\Music\\Depeche Mode - Violator (1990) (UK PBTHAL LP 24-96) [FLAC] vtwin88cube\\01.-World In My Eyes.flac',
+                            streamURL: '/audio/C:/Music/Depeche Mode - Violator (1990) (UK PBTHAL LP 24-96) [FLAC] vtwin88cube/01.-World In My Eyes.flac'
+                        };
+                        playTrack(firstTrack);
+                        }}
+                        >
+                            <Play size={20} fill="currentColor" />
+                            Play Album
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-1 gap-2 text-sm text-slate-300 sm:grid-cols-2 lg:grid-cols-3">

@@ -14,6 +14,7 @@ type Album struct {
 	Label       string   `json:"label"`
 	Genre       []string `json:"genre"`
 	Tracks      []Track  `json:"tracks"`
+	CoverImage  string   `json:"cover_image,omitempty"`
 }
 
 // Library is a collection of albums

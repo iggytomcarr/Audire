@@ -5,8 +5,10 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 //go:embed data/albums.json
@@ -28,6 +30,62 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.StartAudioServer(8765) // Start on port 8765
+}
+
+// StartAudioServer starts a local HTTP server to stream audio files
+func (a *App) StartAudioServer(port int) error {
+	// Create a new ServeMux to avoid conflicts
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/audio/", func(w http.ResponseWriter, r *http.Request) {
+		println("Audio request received:", r.URL.Path)
+
+		// Add CORS headers FIRST
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Range, Content-Type, Accept-Encoding")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
+		w.Header().Set("Accept-Ranges", "bytes")
+
+		// Handle preflight OPTIONS request
+		if r.Method == "OPTIONS" {
+			println("OPTIONS request handled")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Extract file path from URL (remove "/audio/" prefix)
+		filePath := r.URL.Path[7:] // removes "/audio/"
+		println("Serving file:", filePath)
+
+		// Security: ensure file exists and is readable
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			println("File not found:", filePath)
+			http.NotFound(w, r)
+			return
+		}
+
+		// Serve the audio file
+		http.ServeFile(w, r, filePath)
+		println("File served successfully")
+	})
+
+	// Start server in background
+	go func() {
+		addr := "localhost:" + strconv.Itoa(port)
+		println("Starting audio server on", addr)
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			println("Audio server error:", err.Error())
+		}
+	}()
+
+	return nil
+}
+
+// GetAudioStreamURL converts a file path to a streaming URL
+func (a *App) GetAudioStreamURL(filePath string, port int) string {
+	return "http://localhost:" + strconv.Itoa(port) + "/audio/" + filepath.ToSlash(filePath)
 }
 
 func (a *App) LoadEmbeddedAlbums() error {
