@@ -52,6 +52,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
         setDraft({
             album: album.title,
             artist: album.artist,
+            label: rawAlbum.label || "",
             year: album.year || "",
             genres: (rawAlbum.genre || []).join(", "),
             titles: Object.fromEntries(tracks.map((t) => [t.path, t.title])),
@@ -64,6 +65,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
             ...d,
             album: gathered.title || d.album,
             artist: gathered.artist || d.artist,
+            label: gathered.label || d.label,
             year: gathered.first_release_date ? Number(gathered.first_release_date.slice(0, 4)) : d.year,
             genres: gathered.genres?.length ? gathered.genres.join(", ") : d.genres,
         }));
@@ -78,6 +80,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
             await SaveAlbumMetadata(album.id, {
                 album: draft.album,
                 artist: draft.artist,
+                label: draft.label,
                 year: Number(draft.year) || 0,
                 genres: draft.genres.split(",").map((g) => g.trim()).filter(Boolean),
                 track_titles: changedTitles,
@@ -127,11 +130,12 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
                 <div className="space-y-4">
                     <div className="flex items-start justify-between gap-4">
                         {draft ? (
-                            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_90px]">
+                            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_1fr_90px]">
                                 <label className="text-xs text-slate-400">Album<input className={inputClass} value={draft.album} onChange={(e) => setDraft({ ...draft, album: e.target.value })} /></label>
                                 <label className="text-xs text-slate-400">Artist<input className={inputClass} value={draft.artist} onChange={(e) => setDraft({ ...draft, artist: e.target.value })} /></label>
+                                <label className="text-xs text-slate-400">Label<input className={inputClass} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} /></label>
                                 <label className="text-xs text-slate-400">Year<input className={inputClass} inputMode="numeric" value={draft.year} onChange={(e) => setDraft({ ...draft, year: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></label>
-                                <label className="text-xs text-slate-400 sm:col-span-3">Genres (comma separated)<input className={inputClass} value={draft.genres} onChange={(e) => setDraft({ ...draft, genres: e.target.value })} /></label>
+                                <label className="text-xs text-slate-400 sm:col-span-4">Genres (comma separated)<input className={inputClass} value={draft.genres} onChange={(e) => setDraft({ ...draft, genres: e.target.value })} /></label>
                             </div>
                         ) : (
                             <div className="min-w-0">
@@ -203,12 +207,13 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
                                 <div className="text-slate-400">Format</div>
                                 <div>{formats || "—"}</div>
                             </div>
-                            {rawAlbum.label && (
-                                <div>
-                                    <div className="text-slate-400">Label</div>
-                                    <div>{rawAlbum.label}</div>
+                            <div>
+                                <div className="text-slate-400">Label</div>
+                                <div title={rawAlbum.label ? undefined : "Use Gather info below, or edit the album, to add the label"}>
+                                    {rawAlbum.label || <span className="text-slate-500">Unknown</span>}
+                                    {rawAlbum.label && rawAlbum.catalog_number && <span className="text-slate-500"> · {rawAlbum.catalog_number}</span>}
                                 </div>
-                            )}
+                            </div>
                             {rawAlbum.genre?.length > 0 && (
                                 <div className="lg:col-span-4">
                                     <div className="text-slate-400">Genre</div>

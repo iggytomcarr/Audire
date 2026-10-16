@@ -15,7 +15,8 @@ type Album struct {
 	Album       string   `json:"album"`
 	Year        int      `json:"year,omitempty"`
 	ReleaseDate string   `json:"release_date"`
-	Label       string   `json:"label"`
+	Label         string   `json:"label"`
+	CatalogNumber string   `json:"catalog_number,omitempty"`
 	Genre       []string `json:"genre"`
 	Tracks      []Track  `json:"tracks"`
 	CoverImage   string   `json:"cover_image,omitempty"`
@@ -34,6 +35,10 @@ type VisualSettings struct {
 	Favorites     []string `json:"favorites"`
 	Cycle         bool     `json:"cycle"`
 	FavoritesOnly bool     `json:"favorites_only"`
+	Speed         float64  `json:"speed"`  // 0.25–1: how fast visuals animate
+	Soften        float64  `json:"soften"` // 0–1: how much frames blend to calm flashing
+	Dim           float64  `json:"dim"`    // 0–1: how much brightness and colour are muted
+	AdjustOpen    bool     `json:"adjust_open"`
 }
 
 // ScanResult summarises a scan of the music folders

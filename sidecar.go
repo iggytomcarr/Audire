@@ -28,6 +28,7 @@ type AlbumSidecar struct {
 type AlbumMetadata struct {
 	Album  string                   `json:"album,omitempty"`
 	Artist string                   `json:"artist,omitempty"`
+	Label  string                   `json:"label,omitempty"`
 	Year   int                      `json:"year,omitempty"`
 	Genres []string                 `json:"genres,omitempty"`
 	Tracks map[string]TrackMetadata `json:"tracks,omitempty"` // keyed by file path relative to the album folder
@@ -54,6 +55,8 @@ type AlbumInfo struct {
 	Title            string             `json:"title,omitempty"`
 	Artist           string             `json:"artist,omitempty"`
 	FirstReleaseDate string             `json:"first_release_date,omitempty"`
+	Label            string             `json:"label,omitempty"`
+	CatalogNumber    string             `json:"catalog_number,omitempty"`
 	Genres           []string           `json:"genres,omitempty"`
 	AlbumArticle     string             `json:"album_article,omitempty"`
 	AlbumSections    []WikiSection      `json:"album_sections,omitempty"`
@@ -134,6 +137,8 @@ func applySidecar(album *Album, sc *AlbumSidecar) {
 		if len(info.Genres) > 0 {
 			album.Genre = info.Genres
 		}
+		album.Label = info.Label
+		album.CatalogNumber = info.CatalogNumber
 	}
 	m := sc.Metadata
 	if m == nil {
@@ -144,6 +149,10 @@ func applySidecar(album *Album, sc *AlbumSidecar) {
 	}
 	if m.Artist != "" {
 		album.Artist = m.Artist
+	}
+	if m.Label != "" && m.Label != album.Label {
+		album.Label = m.Label
+		album.CatalogNumber = ""
 	}
 	if m.Year > 0 {
 		album.Year = m.Year

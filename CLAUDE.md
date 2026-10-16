@@ -69,7 +69,14 @@ wails dev
 - `SelectFolder()`: Native folder picker (Wails runtime dialog)
 - `OpenFolder()`: Opens an album folder in Explorer/Finder (only paths inside the music folders)
 - `SaveMusicFolders()` / `LoadMusicFolders()`: Persist music folder paths to `folders.json`
-- `LoadVisualSettings()` / `SaveVisualSettings()`: Persist the Play view's visual, favourites and cycle options to `visuals.json`
+- `LoadVisualSettings()` / `SaveVisualSettings()`: Persist the Play view's visual, favourites, cycle and
+  speed/soften/dim options to `visuals.json`
+
+**Window State:** `window.go` (+ `window_windows.go` helpers)
+- The window starts hidden; on DOM ready its size, position and maximised state are restored for the
+  current screen setup (keyed by monitor resolutions), then it is shown; saved again in `OnBeforeClose`
+- Wails reports positions in absolute screen pixels but sets them relative to the current monitor's work
+  area, so restoring subtracts the primary work-area origin; positions no longer on a monitor are centred
 - `LoadEmbeddedAlbums()`: Loads the sample album data from embedded `data/albums.json` (no longer used by the UI)
 
 **Library Scanner:** `library.go`
@@ -94,6 +101,8 @@ wails dev
 - `GatherAlbumInfo()` runs only when the user clicks Gather/Refresh, then saves to `audire.json`
 - MusicBrainz finds the release group (rate limited to 1 request/second), its links (Wikidata → Wikipedia, AllMusic)
   and the artist's discography; Wikipedia provides album and artist articles as plain-text sections
+- The record label and catalogue number come from the earliest official release in the release group
+  (year-only dates count as the end of the year so dated originals beat digital reissues)
 - AllMusic blocks non-browser clients (Cloudflare), so its link is stored and opened in the browser only;
   do not try to scrape it
 - Links the user edited are used as given on refresh; the rest are re-derived from MusicBrainz
@@ -123,7 +132,8 @@ wails dev
 **Data Storage:**
 - `%AppData%\Audire\folders.json`: Music folder paths (falls back to legacy `data/folders.json` if missing)
 - `%AppData%\Audire\library.json`: Cached scan so the library shows instantly on startup
-- `%AppData%\Audire\visuals.json`: Current visualiser preset, favourite presets and cycle options
+- `%AppData%\Audire\visuals.json`: Current visualiser preset, favourite presets and cycle/speed/soften/dim options
+- `%AppData%\Audire\window.json`: Window size, position and maximised state per screen setup
 - `<album folder>\audire.json`: Per-album edits, source links and gathered info (see Album Sidecar)
 - `<album folder>\cover.<ext>`: Cover chosen in the cover picker
 - `data/albums.json`: Embedded sample album metadata (included in binary at build time)
@@ -139,7 +149,12 @@ wails dev
 - Header tabs PLAY / LIBRARY (styled after Arturia Pigments), a grid/list toggle in Library, and a settings icon
 - Views: `library` (grid or list layout), `album`, `settings`, `play`
 - Handles search/filtering across albums, artists, years and track titles
-- Fixed footer player: now playing, previous/play/next, seek and volume
+- Passes the player bar's height to pages so content is never hidden behind it
+
+**Player Bar:** `frontend/src/PlayerBar.jsx`
+- Fixed bar in every view: now playing, previous/play/next, seek and volume
+- Drag its top edge up to expand into a large now-playing panel with an "Up next" queue; double-click
+  the handle to toggle; the height is remembered (localStorage)
 
 **Settings:** `frontend/src/SettingsPage.jsx`
 - "Music Locations" list (styled after Bitwig's Locations settings): each saved folder with track count,
@@ -162,6 +177,9 @@ wails dev
 - Stays mounted after the first visit and only renders while the tab is visible
 - Overlay: now-playing track with track arrows; previous/next/favourite/cycle controls; a browser panel
   to search presets and heart favourites; "favourites only" limits next/previous/cycle to favourites
+- Adjust panel (hidden until opened): Speed (scales the elapsed time passed to `render()` and lowers the
+  frame rate, capped at 60fps), Soften (blends frames on a 2D canvas to calm strobing) and Dim (CSS
+  brightness/saturation); all saved in `visuals.json`
 - Note: the Winamp source repo's MilkDrop/AVS code is Win32/DirectX and under the Winamp Collaborative
   License (no distribution of modifications), so it is not used here
 
@@ -216,6 +234,7 @@ Audire/
 ├── sidecar.go           # audire.json per-album sidecar (edits, sources, gathered info)
 ├── gather.go            # MusicBrainz/Wikipedia info gathering and metadata edits
 ├── covers.go            # Cover search and saving into album folders
+├── window.go            # Remember window size/position per screen setup
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration
 ├── data/
@@ -234,6 +253,7 @@ Audire/
         ├── SettingsPage.jsx
         ├── AlbumDetailsPage.jsx
         ├── PlayPage.jsx
+        ├── PlayerBar.jsx
         ├── AlbumInfo.jsx
         ├── CoverPicker.jsx
         └── AboutPage.jsx

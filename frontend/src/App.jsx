@@ -1,12 +1,13 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { SkipBack, Play, Pause, SkipForward, Volume2, Loader2, LayoutGrid, List, Settings } from "lucide-react";
+import { Play, LayoutGrid, List, Settings } from "lucide-react";
 import logo from "./assets/images/audire_menu_logo.png";
 
 import AlbumDetailsPage from "./AlbumDetailsPage";
 import SettingsPage from "./SettingsPage";
 import PlayPage from "./PlayPage";
-import { useAudioPlayer, formatTime } from "./AudioPlayerContext";
+import PlayerBar from "./PlayerBar";
+import { useAudioPlayer } from "./AudioPlayerContext";
 import { GetAlbums, LoadMusicFolders, SaveMusicFolders, ScanLibrary } from "../wailsjs/go/main/App";
 
 const GRADIENTS = [
@@ -37,7 +38,8 @@ export default function App() {
     const [scanResult, setScanResult] = useState(null);
 
     const player = useAudioPlayer();
-    const { currentTrack, isPlaying, isLoading, currentTime, duration, error, volume, setVolume, playQueue, togglePlayPause, next, previous, seek, coverURL, hasNext } = player;
+    const { currentTrack, playQueue, coverURL } = player;
+    const [playerHeight, setPlayerHeight] = useState(76);
 
     const rescan = useCallback(async () => {
         setIsScanning(true);
@@ -248,12 +250,13 @@ export default function App() {
                 <PlayPage
                     active={view === "play"}
                     playingAlbum={playingAlbum}
+                    bottomInset={playerHeight}
                     onOpenLibrary={() => navigate("library")}
                 />
             )}
 
             {/* Content */}
-            <main className={`mx-auto w-full max-w-7xl px-4 pb-28 pt-4 ${view === "play" ? "hidden" : ""}`}>
+            <main className={`mx-auto w-full max-w-7xl px-4 pt-4 ${view === "play" ? "hidden" : ""}`} style={{ paddingBottom: playerHeight + 32 }}>
                 {view === "settings" ? (
                     <SettingsPage
                         folders={folders}
@@ -370,94 +373,7 @@ export default function App() {
                 )}
             </main>
 
-            {/* Footer Player */}
-            <footer className="fixed inset-x-0 bottom-0 border-t border-slate-800 bg-slate-950/80 backdrop-blur">
-                <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-3 px-4 py-3 md:grid-cols-3">
-                    <div
-                        className={`flex min-w-0 items-center gap-3 ${playingAlbum ? "cursor-pointer" : ""}`}
-                        onClick={() => playingAlbum && handleAlbumClick(playingAlbum)}
-                    >
-                        <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-800 ${playingAlbum && !playingAlbum.coverImage ? `bg-gradient-to-br ${playingAlbum.colors}` : "bg-slate-900"}`}>
-                            {playingAlbum?.coverImage && (
-                                <img src={playingAlbum.coverImage} alt="" className="h-full w-full object-cover" />
-                            )}
-                        </div>
-                        <div className="min-w-0">
-                            {currentTrack ? (
-                                <>
-                                    <div className="truncate text-sm font-medium">{currentTrack.title}</div>
-                                    <div className={`truncate text-xs ${error ? "text-rose-400" : "text-slate-400"}`}>
-                                        {error || (isLoading ? "Loading… (cloud files download on first play)" : `${currentTrack.artist} — ${currentTrack.album}`)}
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="truncate text-sm font-medium">Nothing playing</div>
-                                    <div className="truncate text-xs text-slate-400">Select an album to start</div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex justify-center gap-2">
-                        <button
-                            onClick={previous}
-                            disabled={!currentTrack}
-                            className="rounded-lg border border-slate-800 px-3 py-2 transition hover:bg-slate-800 disabled:opacity-40"
-                            title="Previous"
-                        >
-                            <SkipBack size={20} />
-                        </button>
-                        <button
-                            onClick={togglePlayPause}
-                            disabled={!currentTrack}
-                            className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-slate-950 shadow transition hover:bg-indigo-400 disabled:opacity-40"
-                            title={isPlaying ? "Pause" : "Play"}
-                        >
-                            {isLoading && !isPlaying ? (
-                                <Loader2 size={20} className="animate-spin" />
-                            ) : isPlaying ? (
-                                <Pause size={20} fill="currentColor" />
-                            ) : (
-                                <Play size={20} fill="currentColor" />
-                            )}
-                        </button>
-                        <button
-                            onClick={next}
-                            disabled={!hasNext}
-                            className="rounded-lg border border-slate-800 px-3 py-2 transition hover:bg-slate-800 disabled:opacity-40"
-                            title="Next"
-                        >
-                            <SkipForward size={20} />
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-3 md:justify-end">
-                        <span className="w-10 text-right text-xs tabular-nums text-slate-400">{formatTime(currentTime)}</span>
-                        <input
-                            type="range"
-                            min="0"
-                            max={duration || 0}
-                            step="0.1"
-                            value={Math.min(currentTime, duration || 0)}
-                            onChange={(e) => seek(Number(e.target.value))}
-                            disabled={!duration}
-                            className="w-full accent-indigo-400 md:w-48"
-                            aria-label="Seek"
-                        />
-                        <span className="w-10 text-xs tabular-nums text-slate-400">{formatTime(duration)}</span>
-                        <Volume2 size={16} className="shrink-0 text-slate-400" />
-                        <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={volume}
-                            onChange={(e) => setVolume(Number(e.target.value))}
-                            className="w-20 accent-indigo-400"
-                            aria-label="Volume"
-                        />
-                    </div>
-                </div>
-            </footer>
+            <PlayerBar playingAlbum={playingAlbum} onOpenAlbum={handleAlbumClick} onHeightChange={setPlayerHeight} />
         </div>
     );
 }

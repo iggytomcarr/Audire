@@ -221,6 +221,74 @@ func discography(artistID string) ([]DiscographyEntry, error) {
 	return out, nil
 }
 
+// originalLabel returns the label and catalogue number of the album's earliest
+// official release (labels belong to releases, not to the album as a whole)
+func originalLabel(releaseGroupID string) (label, catalog string, err error) {
+	var res struct {
+		Releases []struct {
+			Date      string `json:"date"`
+			Status    string `json:"status"`
+			Country   string `json:"country"`
+			LabelInfo []struct {
+				CatalogNumber string `json:"catalog-number"`
+				Label         *struct {
+					Name string `json:"name"`
+				} `json:"label"`
+			} `json:"label-info"`
+		} `json:"releases"`
+	}
+	if err := getJSON("https://musicbrainz.org/ws/2/release?fmt=json&limit=100&inc=labels&release-group="+url.QueryEscape(releaseGroupID), &res); err != nil {
+		return "", "", err
+	}
+	// A year-only date counts as the end of that year, so the dated original release
+	// (e.g. 1997-02-25) beats a digital reissue that only claims "1997"
+	sortDate := func(d string) string {
+		switch len(d) {
+		case 0:
+			return "9999"
+		case 4:
+			return d + "-12-31"
+		case 7:
+			return d + "-31"
+		}
+		return d
+	}
+	hasCatalog := func(i int) bool {
+		for _, li := range res.Releases[i].LabelInfo {
+			if li.CatalogNumber != "" && li.CatalogNumber != "[none]" {
+				return true
+			}
+		}
+		return false
+	}
+	worldwide := func(i int) bool { c := res.Releases[i].Country; return c == "XW" || c == "XE" }
+	sort.SliceStable(res.Releases, func(i, j int) bool {
+		a, b := res.Releases[i], res.Releases[j]
+		if (a.Status == "Official") != (b.Status == "Official") {
+			return a.Status == "Official"
+		}
+		if da, db := sortDate(a.Date), sortDate(b.Date); da != db {
+			return da < db
+		}
+		if hasCatalog(i) != hasCatalog(j) {
+			return hasCatalog(i)
+		}
+		return !worldwide(i) && worldwide(j)
+	})
+	for _, r := range res.Releases {
+		for _, li := range r.LabelInfo {
+			if li.Label != nil && li.Label.Name != "" && li.Label.Name != "[no label]" {
+				catalog := li.CatalogNumber
+				if catalog == "[none]" {
+					catalog = ""
+				}
+				return li.Label.Name, catalog, nil
+			}
+		}
+	}
+	return "", "", nil
+}
+
 // --- Wikipedia ---
 
 var reWikiHeading = regexp.MustCompile(`^(={2,})\s*(.+?)\s*={2,}$`)
@@ -400,6 +468,7 @@ func (a *App) SaveAlbumSources(albumID string, sources AlbumSources) (*AlbumSide
 type AlbumEdit struct {
 	Album       string            `json:"album"`
 	Artist      string            `json:"artist"`
+	Label       string            `json:"label"`
 	Year        int               `json:"year"`
 	Genres      []string          `json:"genres"`
 	TrackTitles map[string]string `json:"track_titles"`
@@ -421,6 +490,7 @@ func (a *App) SaveAlbumMetadata(albumID string, edit AlbumEdit) (Album, error) {
 	}
 	m.Album = strings.TrimSpace(edit.Album)
 	m.Artist = strings.TrimSpace(edit.Artist)
+	m.Label = strings.TrimSpace(edit.Label)
 	m.Year = edit.Year
 	m.Genres = normaliseGenres(edit.Genres)
 	if m.Tracks == nil {
@@ -495,6 +565,10 @@ func (a *App) GatherAlbumInfo(albumID string) (*AlbumSidecar, error) {
 			src.setDerived("musicbrainz_artist", &src.MusicBrainzArtist, "https://musicbrainz.org/artist/"+rg.ArtistCredit[0].Artist.ID)
 		}
 		src.setDerived("allmusic", &src.AllMusic, relation(rg.Relations, "allmusic"))
+		progress("Finding the record label…")
+		if info.Label, info.CatalogNumber, err = originalLabel(rg.ID); err != nil {
+			note("Couldn't look up the record label: %v", err)
+		}
 		progress("Looking for Wikipedia articles…")
 		src.setDerived("wikipedia_album", &src.WikipediaAlbum, wikipediaFromRelations(rg.Relations))
 	}

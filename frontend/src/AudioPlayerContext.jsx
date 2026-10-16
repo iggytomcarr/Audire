@@ -258,6 +258,7 @@ export function AudioPlayerProvider({ children }) {
         previous,
         seek,
         coverURL,
+        queueIndex: index,
         hasNext: index + 1 < queue.length,
         hasPrevious: index >= 0,
         analyserNode: analyserNodeRef.current, // For visualization

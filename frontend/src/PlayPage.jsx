@@ -2,11 +2,13 @@
 // Full-window MilkDrop visualiser (via Butterchurn) with the now-playing track overlaid,
 // laid out like the Play view in Arturia Pigments.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, Repeat, ListMusic, X, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Repeat, ListMusic, X, Search, SlidersHorizontal } from "lucide-react";
 import { useAudioPlayer } from "./AudioPlayerContext";
 import { LoadVisualSettings, SaveVisualSettings } from "../wailsjs/go/main/App";
 
 const CYCLE_SECONDS = 30;
+const MAX_FPS = 60;
+const MIN_FPS = 30;
 const BLEND_SECONDS = 2.7;
 
 // Butterchurn's preset packs: the classic MilkDrop community presets, converted for WebGL
@@ -23,9 +25,11 @@ function splitPresetName(name) {
     return i > 0 ? { author: name.slice(0, i), title: name.slice(i + 3) } : { author: "", title: name };
 }
 
-export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
+export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomInset = 76 }) {
     const { currentTrack, previous, next, hasNext, getAudioGraph } = useAudioPlayer();
     const canvasRef = useRef(null);
+    const softCanvasRef = useRef(null); // shows blended frames when Soften is on
+    const motionRef = useRef({ speed: 1, soften: 0 });
     const vizRef = useRef(null);
     const presetsRef = useRef({});
     const loadedPresetRef = useRef(null);
@@ -60,6 +64,8 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
             const [width, height] = pixelSize();
             canvas.width = width;
             canvas.height = height;
+            softCanvasRef.current.width = width;
+            softCanvasRef.current.height = height;
             const viz = butterchurn.createVisualizer(audioContext, canvas, { width, height, pixelRatio: 1, textureRatio: 1 });
             viz.connectAudio(sourceNode);
             vizRef.current = viz;
@@ -69,6 +75,8 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
                 if (w === canvas.width && h === canvas.height) return;
                 canvas.width = w;
                 canvas.height = h;
+                softCanvasRef.current.width = w;
+                softCanvasRef.current.height = h;
                 viz.setRendererSize(w, h);
             });
             resizeObserver.observe(canvas);
@@ -80,6 +88,10 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
             setSettings({
                 cycle: saved.cycle,
                 favorites_only: saved.favorites_only,
+                speed: saved.speed || 1,
+                soften: saved.soften || 0,
+                dim: saved.dim || 0,
+                adjust_open: !!saved.adjust_open,
                 favorites: (saved.favorites || []).filter((f) => presets[f]),
                 preset: presets[saved.preset] ? saved.preset : names[Math.floor(Math.random() * names.length)],
             });
@@ -102,15 +114,39 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
         };
     }, []);
 
-    // Render only while the Play tab is showing
+    useEffect(() => {
+        motionRef.current = { speed: settings?.speed ?? 1, soften: settings?.soften ?? 0 };
+    }, [settings?.speed, settings?.soften]);
+
+    // Render only while the Play tab is showing.
+    // Speed slows the visual two ways: presets' clocks advance by elapsed time, so that is
+    // scaled down; many presets also move a fixed amount per frame, so fewer frames are drawn
+    // (capped at 60fps, which also stops high-refresh screens running visuals too fast).
+    // Soften blends each frame into the last ones, which smooths out strobing.
     useEffect(() => {
         if (!active) return;
         let raf;
-        const loop = () => {
-            vizRef.current?.render();
+        let last = performance.now();
+        let pending = 0;
+        const loop = (now) => {
             raf = requestAnimationFrame(loop);
+            const viz = vizRef.current;
+            if (!viz) return;
+            const { speed, soften } = motionRef.current;
+            pending += Math.min((now - last) / 1000, 0.1);
+            last = now;
+            const fps = Math.max(MIN_FPS, Math.min(MAX_FPS, MAX_FPS * speed));
+            if (pending < 1 / fps - 0.002) return;
+            viz.render({ elapsedTime: Math.max(pending * speed, 0.001) });
+            pending = 0;
+            if (soften > 0) {
+                const soft = softCanvasRef.current;
+                const ctx = soft.getContext("2d");
+                ctx.globalAlpha = 1 - soften * 0.85;
+                ctx.drawImage(canvasRef.current, 0, 0, soft.width, soft.height);
+            }
         };
-        loop();
+        raf = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(raf);
     }, [active]);
 
@@ -121,7 +157,9 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
             vizRef.current.loadPreset(presetsRef.current[settings.preset], loadedPresetRef.current ? BLEND_SECONDS : 0);
             loadedPresetRef.current = settings.preset;
         }
-        SaveVisualSettings(settings).catch((err) => console.error("Failed to save visual settings:", err));
+        // Wait for slider drags to settle before writing to disk
+        const id = setTimeout(() => SaveVisualSettings(settings).catch((err) => console.error("Failed to save visual settings:", err)), 400);
+        return () => clearTimeout(id);
     }, [settings]);
 
     const update = (changes) => setSettings((s) => (s ? { ...s, ...changes } : s));
@@ -187,11 +225,15 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
 
     return (
         <section className={`fixed inset-0 bg-slate-950 ${active ? "" : "hidden"}`} aria-label="Play">
-            <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+            {/* Dim lowers brightness and saturation without changing how it reacts to the music */}
+            <div className="absolute inset-0" style={{ filter: settings?.dim ? `brightness(${1 - settings.dim * 0.6}) saturate(${1 - settings.dim * 0.6})` : undefined }}>
+                <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "opacity-0" : ""}`} />
+                <canvas ref={softCanvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "" : "hidden"}`} />
+            </div>
             {/* Soften the edges so the overlay text stays readable over bright presets */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950/60 via-transparent to-slate-950/40" />
 
-            <div className="relative mx-auto flex h-full max-w-7xl items-center justify-between gap-8 px-8 pb-24 pt-20 md:px-16">
+            <div className="relative mx-auto flex h-full max-w-7xl justify-between gap-8 overflow-y-auto px-8 pt-20 [align-items:safe_center] md:px-16" style={{ paddingBottom: bottomInset + 24 }}>
                 {/* Now playing */}
                 <div className="min-w-0 max-w-2xl [text-shadow:0_2px_12px_rgba(2,6,23,0.8)]">
                     <span className="inline-block max-w-full truncate rounded-lg bg-indigo-500 px-3 py-1 text-sm font-semibold text-slate-950 [text-shadow:none]">
@@ -202,7 +244,7 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
                     </h1>
                     <p className="mt-2 truncate text-lg text-slate-300">
                         {currentTrack
-                            ? [currentTrack.artist, playingAlbum?.year].filter(Boolean).join(" • ")
+                            ? [currentTrack.artist, playingAlbum?.year, playingAlbum?.rawAlbum?.label].filter(Boolean).join(" • ")
                             : "Pick an album in the Library to get started"}
                     </p>
                     <div className="mt-4 flex gap-2">
@@ -272,13 +314,50 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary }) {
                         >
                             <span className="inline-flex items-center gap-1"><Heart size={11} fill="currentColor" /> Only ({favorites.length})</span>
                         </button>
+                        <button
+                            onClick={() => update({ adjust_open: !settings?.adjust_open })}
+                            className={chip(settings?.adjust_open)}
+                            disabled={!settings}
+                            title="Speed, soften and dim"
+                            aria-expanded={!!settings?.adjust_open}
+                        >
+                            <span className="inline-flex items-center gap-1"><SlidersHorizontal size={11} /> Adjust</span>
+                        </button>
                     </div>
+
+                    {/* Calming controls, shown from the Adjust button */}
+                    {settings?.adjust_open && <div className="mt-4 space-y-2 rounded-xl border border-slate-700/50 bg-slate-950/50 px-3 py-2.5 backdrop-blur-sm">
+                        {[
+                            { key: "speed", label: "Speed", min: 0.25, max: 1, fallback: 1, show: (v) => `${Math.round(v * 100)}%`, title: "Slow the visual down" },
+                            { key: "soften", label: "Soften", min: 0, max: 1, fallback: 0, show: (v) => (v ? `${Math.round(v * 100)}%` : "Off"), title: "Blend frames together to smooth out flashing" },
+                            { key: "dim", label: "Dim", min: 0, max: 1, fallback: 0, show: (v) => (v ? `${Math.round(v * 100)}%` : "Off"), title: "Lower brightness and mute the colours" },
+                        ].map((c) => {
+                            const value = settings?.[c.key] ?? c.fallback;
+                            return (
+                                <label key={c.key} className="grid grid-cols-[52px_1fr_36px] items-center gap-2 text-[11px] font-semibold" title={c.title}>
+                                    <span className="text-slate-300">{c.label}</span>
+                                    <input
+                                        type="range"
+                                        min={c.min}
+                                        max={c.max}
+                                        step="0.05"
+                                        value={value}
+                                        disabled={!settings}
+                                        onChange={(e) => update({ [c.key]: Number(e.target.value) })}
+                                        className="w-full accent-indigo-400"
+                                        aria-label={c.label}
+                                    />
+                                    <span className="text-right tabular-nums text-slate-400">{c.show(value)}</span>
+                                </label>
+                            );
+                        })}
+                    </div>}
                 </div>
             </div>
 
             {/* Visual browser */}
             {browseOpen && (
-                <aside className="absolute bottom-24 right-4 top-20 flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/85 shadow-2xl backdrop-blur">
+                <aside style={{ bottom: bottomInset + 16 }} className="absolute right-4 top-20 flex w-[380px] max-w-[calc(100%-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-950/85 shadow-2xl backdrop-blur">
                     <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
                         <div className="flex gap-1">
                             {[

@@ -24,6 +24,9 @@ type App struct {
 	Library      Library
 	folders      []string
 	mediaBaseURL string
+
+	windowRestored bool
+	windowShown    bool
 }
 
 // NewApp creates a new App application struct
@@ -36,6 +39,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.showWindowEventually(ctx)
 
 	if folders, err := a.LoadMusicFolders(); err == nil {
 		a.folders = folders
@@ -189,6 +193,9 @@ func (a *App) LoadVisualSettings() VisualSettings {
 	}
 	if settings.Favorites == nil {
 		settings.Favorites = []string{}
+	}
+	if settings.Speed <= 0 || settings.Speed > 1 {
+		settings.Speed = 1
 	}
 	return settings
 }
