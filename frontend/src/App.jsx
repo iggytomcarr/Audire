@@ -1,5 +1,5 @@
 // /frontend/src/App.jsx
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { SkipBack, Play, Pause, SkipForward, Volume2, Loader2, LayoutGrid, List, Settings } from "lucide-react";
 import logo from "./assets/images/audire_menu_logo.png";
 
@@ -128,10 +128,30 @@ export default function App() {
     const selectedAlbum = albums.find((a) => a.id === selectedAlbumId);
     const playingAlbum = currentTrack ? albums.find((a) => a.id === currentTrack.albumId) : null;
 
+    // Remember where you were in the library (overview or an album, and how far down)
+    // so coming back from Play or Settings returns to the same place
+    const lastLibraryView = useRef("library");
+    const scrollPositions = useRef({});
+    const pageKey = (v, albumId = selectedAlbumId) => (v === "album" ? `album:${albumId}` : v);
+
+    const navigate = (next, { albumId = selectedAlbumId, exact = false } = {}) => {
+        if (view === "library" || view === "album") {
+            lastLibraryView.current = view;
+            scrollPositions.current[pageKey(view)] = window.scrollY;
+        }
+        if (next === "library" && !exact && (view === "play" || view === "settings")) {
+            next = lastLibraryView.current;
+        }
+        setSelectedAlbumId(albumId);
+        setView(next);
+        const top = scrollPositions.current[pageKey(next, albumId)] || 0;
+        requestAnimationFrame(() => window.scrollTo(0, top));
+    };
+
     // Function to handle album clicks
     const handleAlbumClick = (album) => {
-        setSelectedAlbumId(album.id);
-        setView("album");
+        delete scrollPositions.current[pageKey("album", album.id)];
+        navigate("album", { albumId: album.id });
     };
 
     const playAlbum = (e, album) => {
@@ -161,7 +181,7 @@ export default function App() {
                                 value={query}
                                 onChange={(e) => {
                                     setQuery(e.target.value);
-                                    if (view !== "library") setView("library");
+                                    if (view !== "library") navigate("library", { exact: true });
                                 }}
                                 className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2 outline-none placeholder:text-slate-400 focus:border-indigo-400"
                             />
@@ -177,7 +197,7 @@ export default function App() {
                         ].map((tab) => (
                             <button
                                 key={tab.id}
-                                onClick={() => setView(tab.id)}
+                                onClick={() => navigate(tab.id)}
                                 aria-pressed={tab.active}
                                 className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] transition ${
                                     tab.active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:text-white"
@@ -209,7 +229,7 @@ export default function App() {
                         )}
 
                         <button
-                            onClick={() => setView("settings")}
+                            onClick={() => navigate("settings")}
                             aria-pressed={view === "settings"}
                             className={`ml-2 rounded-lg p-2 transition hover:bg-slate-900 ${
                                 view === "settings" ? "text-indigo-300" : "text-slate-300 hover:text-white"
@@ -228,7 +248,7 @@ export default function App() {
                 <PlayPage
                     active={view === "play"}
                     playingAlbum={playingAlbum}
-                    onOpenLibrary={() => setView("library")}
+                    onOpenLibrary={() => navigate("library")}
                 />
             )}
 
@@ -242,18 +262,15 @@ export default function App() {
                         isScanning={isScanning}
                         scanResult={scanResult}
                         albumCount={albums.length}
-                        onBack={() => setView("library")}
+                        onBack={() => navigate("library")}
                     />
                 ) : view === "album" && selectedAlbum ? (
                     <AlbumDetailsPage
                         album={selectedAlbum}
-                        onBack={() => setView("library")}
+                        onBack={() => navigate("library")}
                         onAlbumUpdated={refreshAlbums}
                         libraryAlbums={albums}
-                        onOpenAlbum={(id) => {
-                            setSelectedAlbumId(id);
-                            window.scrollTo(0, 0);
-                        }}
+                        onOpenAlbum={(id) => handleAlbumClick({ id })}
                     />
                 ) : albums.length === 0 ? (
                     <div className="mx-auto max-w-md py-24 text-center">
@@ -263,7 +280,7 @@ export default function App() {
                             <>
                                 <p className="mb-4 text-slate-300">Your library is empty. Add a music folder to get started.</p>
                                 <button
-                                    onClick={() => setView("settings")}
+                                    onClick={() => navigate("settings")}
                                     className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-slate-950 hover:bg-indigo-400"
                                 >
                                     Add music folder
