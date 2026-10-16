@@ -7,3 +7,24 @@ html, body, #App { height: 100%; }
 
 /* Optional: nicer range inputs across platforms */
 input[type="range"] { @apply accent-indigo-400; }
+
+/* Glossy accent for primary buttons and pills: a subtle indigo-to-violet gradient,
+   a soft sheen on the top half, a thin highlight and a gentle glow */
+@layer components {
+  .btn-accent {
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.06) 48%, rgba(255, 255, 255, 0) 52%),
+      linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #8b5cf6 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.25),
+      0 6px 18px -6px rgba(129, 140, 248, 0.6);
+    @apply text-slate-950 transition;
+  }
+  .btn-accent:hover:not(:disabled) {
+    filter: brightness(1.1) saturate(1.05);
+  }
+  .btn-accent:active:not(:disabled) {
+    filter: brightness(0.95);
+  }
+}

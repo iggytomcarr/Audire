@@ -1,7 +1,7 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { Play, LayoutGrid, List, Settings } from "lucide-react";
-import logo from "./assets/images/audire_menu_logo.png";
+import AudireLogo from "./AudireLogo";
 
 import AlbumDetailsPage from "./AlbumDetailsPage";
 import SettingsPage from "./SettingsPage";
@@ -170,7 +170,7 @@ export default function App() {
                 <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-3">
                     {/* Brand */}
                     <div className="flex items-center gap-3">
-                        <img src={logo} alt="logo" className="h-8 w-auto rounded-lg shadow" />
+                        <AudireLogo className="h-8 w-auto" />
                         {/*<div className="text-lg font-semibold tracking-wide">Audire Music Player</div>*/}
                     </div>
 
@@ -284,7 +284,7 @@ export default function App() {
                                 <p className="mb-4 text-slate-300">Your library is empty. Add a music folder to get started.</p>
                                 <button
                                     onClick={() => navigate("settings")}
-                                    className="rounded-lg bg-indigo-500 px-4 py-2 font-semibold text-slate-950 hover:bg-indigo-400"
+                                    className="rounded-lg btn-accent px-4 py-2 font-semibold"
                                 >
                                     Add music folder
                                 </button>

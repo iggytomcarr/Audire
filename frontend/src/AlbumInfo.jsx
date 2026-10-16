@@ -142,7 +142,7 @@ export default function AlbumInfo({ album, libraryAlbums, onAlbumUpdated, onOpen
                     <button
                         onClick={gather}
                         disabled={busy || !sidecar}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-indigo-400 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg btn-accent px-3 py-2 text-sm font-semibold disabled:opacity-50"
                     >
                         {busy ? <Loader2 size={14} className="animate-spin" /> : info ? <RefreshCw size={14} /> : <Sparkles size={14} />}
                         {info ? "Refresh" : "Gather info"}
@@ -179,7 +179,7 @@ export default function AlbumInfo({ album, libraryAlbums, onAlbumUpdated, onOpen
                     ))}
                     <div className="flex justify-end gap-2 pt-1">
                         <button onClick={() => setEditingSources(false)} className="rounded-lg border border-slate-800 px-3 py-1.5 text-sm hover:bg-slate-900">Cancel</button>
-                        <button onClick={saveSources} className="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-semibold text-slate-950 hover:bg-indigo-400">Save links</button>
+                        <button onClick={saveSources} className="rounded-lg btn-accent px-3 py-1.5 text-sm font-semibold">Save links</button>
                     </div>
                 </div>
             ) : (

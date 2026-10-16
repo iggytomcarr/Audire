@@ -81,7 +81,7 @@ export default function CoverPicker({ album, onClose, onSaved }) {
                                     >
                                         <img src={c.thumb} alt="" loading="lazy" className="aspect-square w-full bg-slate-900 object-cover" />
                                         {isSelected && (
-                                            <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-indigo-500 text-slate-950">
+                                            <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full btn-accent">
                                                 <Check size={14} strokeWidth={3} />
                                             </span>
                                         )}
@@ -111,7 +111,7 @@ export default function CoverPicker({ album, onClose, onSaved }) {
                         <button
                             onClick={save}
                             disabled={!choice || saving}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-indigo-400 disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 rounded-lg btn-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
                         >
                             {saving && <Loader2 size={14} className="animate-spin" />}
                             Save cover

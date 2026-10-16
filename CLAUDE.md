@@ -194,6 +194,15 @@ wails dev
 - Font: Plus Jakarta Sans (Google font, bundled via `@fontsource-variable/plus-jakarta-sans`, works offline)
 - Custom dark theme (slate color palette)
 - Configuration: `frontend/tailwind.config.js`
+- `.btn-accent` (in `index.css`) is the glossy indigo→violet gradient used for primary buttons and pills;
+  use it instead of a flat `bg-indigo-500`
+
+**Logo:** `frontend/src/AudireLogo.jsx`
+- The header wordmark as inline SVG, animated with GSAP: the waveform breathes when idle and follows the
+  music (its own analyser on the pre-volume source: bass drives the tall bar, mids the side bars, treble
+  the dots) while playing; the waveform gradient rotates and a shimmer crosses the name every few seconds
+- Uses `gsap.matchMedia` so nothing animates when the system asks for reduced motion
+- `quickTo` only drives single properties, so scale is set as separate `scaleX`/`scaleY`
 
 **Wails Integration:**
 - Frontend imports Go methods from `frontend/wailsjs/go/main/App.js`
@@ -254,6 +263,7 @@ Audire/
         ├── AlbumDetailsPage.jsx
         ├── PlayPage.jsx
         ├── PlayerBar.jsx
+        ├── AudireLogo.jsx
         ├── AlbumInfo.jsx
         ├── CoverPicker.jsx
         └── AboutPage.jsx

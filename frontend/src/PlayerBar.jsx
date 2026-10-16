@@ -97,7 +97,7 @@ export default function PlayerBar({ playingAlbum, onOpenAlbum, onHeightChange })
             <button
                 onClick={togglePlayPause}
                 disabled={!currentTrack}
-                className={`rounded-lg bg-indigo-500 font-semibold text-slate-950 shadow transition hover:bg-indigo-400 disabled:opacity-40 ${big ? "px-6 py-3" : "px-4 py-2"}`}
+                className={`rounded-lg btn-accent font-semibold transition disabled:opacity-40 ${big ? "px-6 py-3" : "px-4 py-2"}`}
                 title={isPlaying ? "Pause" : "Play"}
             >
                 {isLoading && !isPlaying ? (

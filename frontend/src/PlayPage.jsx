@@ -236,7 +236,7 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
             <div className="relative mx-auto flex h-full max-w-7xl justify-between gap-8 overflow-y-auto px-8 pt-20 [align-items:safe_center] md:px-16" style={{ paddingBottom: bottomInset + 24 }}>
                 {/* Now playing */}
                 <div className="min-w-0 max-w-2xl [text-shadow:0_2px_12px_rgba(2,6,23,0.8)]">
-                    <span className="inline-block max-w-full truncate rounded-lg bg-indigo-500 px-3 py-1 text-sm font-semibold text-slate-950 [text-shadow:none]">
+                    <span className="inline-block max-w-full truncate rounded-lg btn-accent px-3 py-1 text-sm font-semibold [text-shadow:none]">
                         {playingAlbum?.title || "Audire"}
                     </span>
                     <h1 className="mt-4 line-clamp-2 pb-2 text-5xl font-extrabold leading-[1.15] tracking-tight md:text-6xl">

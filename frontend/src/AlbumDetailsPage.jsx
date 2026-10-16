@@ -153,7 +153,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
                                         </button>
                                     )}
                                     <button onClick={() => setDraft(null)} className="rounded-lg border border-slate-800 px-3 py-2 text-sm hover:bg-slate-900">Cancel</button>
-                                    <button onClick={saveEdits} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-indigo-400 disabled:opacity-50">
+                                    <button onClick={saveEdits} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg btn-accent px-4 py-2 text-sm font-semibold disabled:opacity-50">
                                         {saving && <Loader2 size={14} className="animate-spin" />} Save
                                     </button>
                                 </>
@@ -180,7 +180,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
 
                                     {/* Play Album Button */}
                                     <button
-                                        className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg transition hover:bg-indigo-400 disabled:opacity-40"
+                                        className="flex items-center gap-2 whitespace-nowrap rounded-lg btn-accent px-6 py-3 font-semibold transition disabled:opacity-40"
                                         disabled={!tracks.length}
                                         onClick={() => (isThisAlbumPlaying ? togglePlayPause() : playQueue(tracks, 0))}
                                     >
