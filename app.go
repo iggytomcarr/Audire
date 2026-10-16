@@ -51,9 +51,15 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
+// configDirOverride redirects settings to another folder (used by tests)
+var configDirOverride string
+
 // configDir is where settings and the scanned library are stored,
 // e.g. %AppData%\Audire on Windows.
 func configDir() string {
+	if configDirOverride != "" {
+		return configDirOverride
+	}
 	if dir, err := os.UserConfigDir(); err == nil {
 		return filepath.Join(dir, "Audire")
 	}

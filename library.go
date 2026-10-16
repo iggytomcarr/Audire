@@ -222,6 +222,16 @@ func buildAlbum(g *albumGroup) Album {
 			Format: strings.TrimPrefix(strings.ToLower(filepath.Ext(f)), "."),
 		})
 	}
+	if album.CoverImage != "" {
+		// Lets the UI refresh a cover that was replaced under the same file name
+		if info, err := os.Stat(album.CoverImage); err == nil {
+			album.CoverVersion = info.ModTime().Unix()
+		}
+	}
+	// The audire.json sidecar is the only file the scanner reads
+	if sc, err := readSidecar(g.dir); err == nil {
+		applySidecar(&album, sc)
+	}
 	return album
 }
 
@@ -406,7 +416,9 @@ func bestImage(dir string) string {
 		}
 		name := strings.ToLower(e.Name())
 		score := 1
-		switch {
+		switch base := strings.TrimSuffix(name, filepath.Ext(name)); {
+		case base == "cover" || base == "folder":
+			score = 4 // e.g. a cover saved from the cover picker
 		case strings.Contains(name, "back"), strings.Contains(name, "inlay"), strings.Contains(name, "tray"), strings.Contains(name, "cd"):
 			score = 0
 		case strings.Contains(name, "cover"), strings.Contains(name, "folder"), strings.Contains(name, "front"):

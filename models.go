@@ -18,7 +18,8 @@ type Album struct {
 	Label       string   `json:"label"`
 	Genre       []string `json:"genre"`
 	Tracks      []Track  `json:"tracks"`
-	CoverImage  string   `json:"cover_image,omitempty"`
+	CoverImage   string   `json:"cover_image,omitempty"`
+	CoverVersion int64    `json:"cover_version,omitempty"`
 	Path        string   `json:"path,omitempty"`
 }
 

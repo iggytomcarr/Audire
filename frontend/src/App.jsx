@@ -73,6 +73,15 @@ export default function App() {
         init();
     }, [rescan]);
 
+    // Re-read the library after an album's metadata, info or cover changes
+    const refreshAlbums = useCallback(async () => {
+        try {
+            setLoadedAlbums((await GetAlbums()) || []);
+        } catch (err) {
+            console.error("Failed to refresh albums:", err);
+        }
+    }, []);
+
     const updateFolders = async (nextFolders) => {
         setFolders(nextFolders);
         try {
@@ -94,7 +103,7 @@ export default function App() {
                 title,
                 artist,
                 year: album.year || (album.release_date ? Number(album.release_date.slice(0, 4)) : ""),
-                coverImage: album.cover_image ? coverURL(album.cover_image) : null,
+                coverImage: album.cover_image ? `${coverURL(album.cover_image)}&v=${album.cover_version || 0}` : null,
                 tracks: (album.tracks || [])
                     .filter((t) => t.path)
                     .map((t) => ({ ...t, artist, album: title, albumId: id, cover: album.cover_image })),
@@ -239,6 +248,12 @@ export default function App() {
                     <AlbumDetailsPage
                         album={selectedAlbum}
                         onBack={() => setView("library")}
+                        onAlbumUpdated={refreshAlbums}
+                        libraryAlbums={albums}
+                        onOpenAlbum={(id) => {
+                            setSelectedAlbumId(id);
+                            window.scrollTo(0, 0);
+                        }}
                     />
                 ) : albums.length === 0 ? (
                     <div className="mx-auto max-w-md py-24 text-center">

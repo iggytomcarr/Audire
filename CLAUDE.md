@@ -74,11 +74,36 @@ wails dev
 
 **Library Scanner:** `library.go`
 - Walks the music folders and turns each folder of audio files into an album (disc sub-folders like `CD 1` are merged)
-- Artist/album/year/track titles are parsed from folder and file names only; it never opens audio files,
+- Artist/album/year/track titles are parsed from folder and file names; it never opens audio files,
   so cloud placeholders (Dropbox online-only files) are not downloaded by a scan
-- Finds cover art by file name (`cover`/`folder`/`front`, art sub-folders, or the parent folder)
+- The only file it reads is each album's `audire.json` sidecar, whose gathered info and user edits are layered
+  over the parsed names (user edits win)
+- Finds cover art by file name (`cover.*`/`folder.*` first, then `cover`/`front` in the name, art sub-folders,
+  or the parent folder)
 - Skips formats WebView2 cannot play (WMA, AIFF, APE, ...) and reports them in `ScanResult`
 - Name parsing is covered by `library_test.go` (`go test ./...`)
+
+**Album Sidecar:** `sidecar.go`
+- `audire.json` in each album folder (Jellyfin-style, plain JSON so it is easy to inspect): `metadata` (user edits
+  to album/artist/year/genres and track titles keyed by file name), `sources` (MusicBrainz/Wikipedia/AllMusic links;
+  `edited` lists links the user set by hand), `info` (gathered write-ups and discography), `cover` (where cover.* came from)
+- Audio files are never modified
+- `SaveAlbumMetadata()`, `SaveAlbumSources()`, `GetAlbumSidecar()` (in `gather.go`) read and write it
+
+**Info Gathering:** `gather.go`
+- `GatherAlbumInfo()` runs only when the user clicks Gather/Refresh, then saves to `audire.json`
+- MusicBrainz finds the release group (rate limited to 1 request/second), its links (Wikidata → Wikipedia, AllMusic)
+  and the artist's discography; Wikipedia provides album and artist articles as plain-text sections
+- AllMusic blocks non-browser clients (Cloudflare), so its link is stored and opened in the browser only;
+  do not try to scrape it
+- Links the user edited are used as given on refresh; the rest are re-derived from MusicBrainz
+- Progress is sent to the UI with the `gather:progress` event
+
+**Covers:** `covers.go`
+- `FindCoverCandidates()` searches Cover Art Archive (when matched on MusicBrainz), Apple Music (iTunes Search API)
+  and Deezer
+- `SaveCover()` downloads the chosen image (must be JPEG/PNG/WebP/GIF), renames any existing `cover.*` to
+  `cover (previous).*` and writes `cover.<ext>` into the album folder
 
 **Media Server:** `media.go`
 - Loopback-only HTTP server on a random port serving `/audio?path=` and `/cover?path=`
@@ -99,6 +124,8 @@ wails dev
 - `%AppData%\Audire\folders.json`: Music folder paths (falls back to legacy `data/folders.json` if missing)
 - `%AppData%\Audire\library.json`: Cached scan so the library shows instantly on startup
 - `%AppData%\Audire\visuals.json`: Current visualiser preset, favourite presets and cycle options
+- `<album folder>\audire.json`: Per-album edits, source links and gathered info (see Album Sidecar)
+- `<album folder>\cover.<ext>`: Cover chosen in the cover picker
 - `data/albums.json`: Embedded sample album metadata (included in binary at build time)
 
 ### Frontend (React)
@@ -124,6 +151,10 @@ wails dev
 - Displays album cover, metadata and track listing
 - Play the album or click a track to play from there; highlights the current track
 - Shows durations as they are learned from playback
+- Edit mode (pencil): album/artist/year/genres and track titles, saved to `audire.json`; "Fill from MusicBrainz"
+  copies gathered details into the form
+- Clicking the cover opens `CoverPicker.jsx`; `AlbumInfo.jsx` below the tracks has Gather/Refresh, editable source
+  links and collapsible album write-up, artist bio and discography (releases in the library link to their page)
 
 **Play View:** `frontend/src/PlayPage.jsx`
 - Full-window MilkDrop visualiser using Butterchurn (MIT WebGL port of MilkDrop 2) and the
@@ -182,6 +213,9 @@ Audire/
 ├── albums.go            # Album operations
 ├── library.go           # Folder scanner (name-based, no file reads)
 ├── media.go             # Local media server for audio and cover art
+├── sidecar.go           # audire.json per-album sidecar (edits, sources, gathered info)
+├── gather.go            # MusicBrainz/Wikipedia info gathering and metadata edits
+├── covers.go            # Cover search and saving into album folders
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration
 ├── data/
@@ -200,6 +234,8 @@ Audire/
         ├── SettingsPage.jsx
         ├── AlbumDetailsPage.jsx
         ├── PlayPage.jsx
+        ├── AlbumInfo.jsx
+        ├── CoverPicker.jsx
         └── AboutPage.jsx
 ```
 
