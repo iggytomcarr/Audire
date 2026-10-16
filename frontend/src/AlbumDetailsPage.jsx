@@ -1,44 +1,30 @@
 // frontend/src/AlbumDetailsPage.jsx
 import React, { useMemo } from "react";
-import { Play } from "lucide-react";
-import { useAudioPlayer } from './AudioPlayerContext';
-//import cover from "./assets/images/mbid-38385642-1a00-4b08-9f41-f0545470263e-42465904052_thumb500.jpg";
+import { Play, Pause, Volume2 } from "lucide-react";
+import { useAudioPlayer, formatTime } from './AudioPlayerContext';
 
 export default function AlbumDetailsPage({ album, onBack }) {
 
-    const { playTrack } = useAudioPlayer();
-// Calculate total duration of all tracks
-    const totalDuration = useMemo(() => {
-        if (!album?.rawAlbum?.tracks?.length) return "0:00";
+    const { playQueue, currentTrack, isPlaying, togglePlayPause, durations } = useAudioPlayer();
 
-        let totalSeconds = 0;
-        album.rawAlbum.tracks.forEach(track => {
-            if (track.duration) {
-                const [minutes, seconds] = track.duration.split(':').map(Number);
-                totalSeconds += (minutes * 60) + seconds;
-            }
-        });
+    const tracks = album?.tracks || [];
+    const isThisAlbumPlaying = currentTrack?.albumId === album?.id;
 
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const remainingSeconds = totalSeconds % 60;
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    // Durations are learned as tracks load, so the total is shown once every track is known
+    const trackSeconds = (track) => {
+        if (durations[track.path]) return durations[track.path];
+        if (track.duration) {
+            const [minutes, seconds] = track.duration.split(':').map(Number);
+            return minutes * 60 + seconds;
         }
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }, [album]);
+        return null;
+    };
 
-    // Format release date
-    const formattedDate = useMemo(() => {
-        if (!album?.rawAlbum?.release_date) return "Unknown";
-        const date = new Date(album.rawAlbum.release_date);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }, [album]);
+    const totalDuration = useMemo(() => {
+        const all = tracks.map(trackSeconds);
+        if (!all.length || all.some((s) => s == null)) return null;
+        return formatTime(all.reduce((sum, s) => sum + s, 0));
+    }, [tracks, durations]);
 
     if (!album) {
         return (
@@ -49,7 +35,7 @@ export default function AlbumDetailsPage({ album, onBack }) {
     }
 
     const { rawAlbum } = album;
-
+    const formats = [...new Set(tracks.map((t) => t.format).filter(Boolean))].join(", ").toUpperCase();
 
     return (
         <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -66,100 +52,97 @@ export default function AlbumDetailsPage({ album, onBack }) {
 
             {/* Hero: Cover on left, details on right */}
             <section className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
-                <div className="md:sticky md:top-20">
-                    {/* Using gradient placeholder since we don't have actual album covers */}
-                    <div className={`w-full max-w-[220px] aspect-square rounded-xl border border-slate-800 shadow bg-gradient-to-br ${album.colors}`} />
+                <div className="md:sticky md:top-20 md:self-start">
+                    <div className={`w-full max-w-[220px] aspect-square overflow-hidden rounded-xl border border-slate-800 shadow ${album.coverImage ? "bg-slate-900" : `bg-gradient-to-br ${album.colors}`}`}>
+                        {album.coverImage && (
+                            <img src={album.coverImage} alt={`${album.title} cover`} className="h-full w-full object-cover" />
+                        )}
+                    </div>
                 </div>
 
                 <div className="space-y-4">
                     <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold">{rawAlbum.album || "Unknown Album"}</h1>
-                            <p className="text-slate-300">By {rawAlbum.artist || "Unknown Artist"}</p>
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-bold">{album.title}</h1>
+                            <p className="text-slate-300">By {album.artist}</p>
                         </div>
 
                         {/* Play Album Button */}
                         <button
-                            className="flex items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg hover:bg-indigo-400 transition whitespace-nowrap"
-                            onClick={() => {
-                        // For now, create a mock track with a test file path
-                        // Later we'll replace this with real scanned files
-                        const firstTrack = {
-                            title: album.rawAlbum.tracks?.[0]?.title || 'Unknown',
-                            artist: album.artist,
-                            album: album.title,
-                            filePath: 'C:\\Music\\Depeche Mode - Violator (1990) (UK PBTHAL LP 24-96) [FLAC] vtwin88cube\\01.-World In My Eyes.flac',
-                            streamURL: '/audio/C:/Music/Depeche Mode - Violator (1990) (UK PBTHAL LP 24-96) [FLAC] vtwin88cube/01.-World In My Eyes.flac'
-                        };
-                        playTrack(firstTrack);
-                        }}
+                            className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg transition hover:bg-indigo-400 disabled:opacity-40"
+                            disabled={!tracks.length}
+                            onClick={() => (isThisAlbumPlaying ? togglePlayPause() : playQueue(tracks, 0))}
                         >
-                            <Play size={20} fill="currentColor" />
-                            Play Album
+                            {isThisAlbumPlaying && isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                            {isThisAlbumPlaying && isPlaying ? "Pause" : isThisAlbumPlaying ? "Resume" : "Play Album"}
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2 text-sm text-slate-300 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2 text-sm text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
-                            <div className="text-slate-400">Release Date</div>
-                            <div>{formattedDate}</div>
-                        </div>
-                        <div>
-                            <div className="text-slate-400">Duration</div>
-                            <div>{totalDuration}</div>
+                            <div className="text-slate-400">Year</div>
+                            <div>{album.year || "Unknown"}</div>
                         </div>
                         <div>
-                            <div className="text-slate-400">Label</div>
-                            <div>{rawAlbum.label || "Unknown Label"}</div>
+                            <div className="text-slate-400">Tracks</div>
+                            <div>{tracks.length}{totalDuration ? ` • ${totalDuration}` : ""}</div>
                         </div>
-                        <div className="lg:col-span-3">
-                            <div className="text-slate-400">Genre</div>
-                            <div>{rawAlbum.genre?.join(', ') || "Unknown Genre"}</div>
+                        <div>
+                            <div className="text-slate-400">Format</div>
+                            <div>{formats || "—"}</div>
                         </div>
+                        {rawAlbum.label && (
+                            <div>
+                                <div className="text-slate-400">Label</div>
+                                <div>{rawAlbum.label}</div>
+                            </div>
+                        )}
+                        {rawAlbum.genre?.length > 0 && (
+                            <div className="lg:col-span-4">
+                                <div className="text-slate-400">Genre</div>
+                                <div>{rawAlbum.genre.join(', ')}</div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Track Listing */}
-                    {rawAlbum.tracks && rawAlbum.tracks.length > 0 ? (
+                    {tracks.length > 0 ? (
                         <div className="overflow-hidden rounded-xl border border-slate-800">
                             <div className="border-b border-slate-800 bg-slate-900/60 px-4 py-2 text-sm font-semibold">
-                                Track Listing ({rawAlbum.tracks.length} tracks)
+                                Track Listing ({tracks.length} tracks)
                             </div>
                             <table className="w-full text-sm">
                                 <tbody>
-                                {rawAlbum.tracks.map((track, i) => (
-                                    <tr key={`${track.title}-${i}`} className="border-t border-slate-800 hover:bg-slate-900/30">
-                                        <td className="w-14 px-4 py-2 text-right tabular-nums text-slate-400">{i + 1}</td>
-                                        <td className="px-2 py-2">{track.title}</td>
-                                        <td className="w-20 px-4 py-2 text-right text-slate-400">{track.duration || "—"}</td>
-                                    </tr>
-                                ))}
+                                {tracks.map((track, i) => {
+                                    const isCurrent = currentTrack?.path === track.path;
+                                    const seconds = trackSeconds(track);
+                                    return (
+                                        <tr
+                                            key={track.path}
+                                            className={`cursor-pointer border-t border-slate-800 hover:bg-slate-900/50 ${isCurrent ? "bg-indigo-500/10 text-indigo-200" : ""}`}
+                                            onClick={() => (isCurrent ? togglePlayPause() : playQueue(tracks, i))}
+                                            title={isCurrent ? "Play / pause" : `Play ${track.title}`}
+                                        >
+                                            <td className="w-14 px-4 py-2 text-right tabular-nums text-slate-400">
+                                                {isCurrent && isPlaying ? <Volume2 size={14} className="ml-auto text-indigo-300" /> : i + 1}
+                                            </td>
+                                            <td className="px-2 py-2">{track.title}</td>
+                                            <td className="w-20 px-4 py-2 text-right tabular-nums text-slate-400">{seconds != null ? formatTime(seconds) : "—"}</td>
+                                        </tr>
+                                    );
+                                })}
                                 </tbody>
                             </table>
                         </div>
                     ) : (
                         <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-center text-slate-400">
-                            No track information available
+                            No playable tracks in this album
                         </div>
                     )}
 
-                    {/* Album Description/Info */}
-                    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-200">
-                        <p>
-                            <strong>{rawAlbum.album || "This Album"}</strong> by <strong>{rawAlbum.artist || "Unknown Artist"}</strong> was released {formattedDate.toLowerCase()} on {rawAlbum.label || "Unknown Label"}.
-                            {rawAlbum.genre && rawAlbum.genre.length > 0 && (
-                                <> This {rawAlbum.genre.join(', ')} album contains {rawAlbum.tracks?.length || 0} tracks.</>
-                            )}
-                        </p>
-                        {rawAlbum.tracks && rawAlbum.tracks.length > 0 && (
-                            <p className="mt-3">
-                                The album runs for a total duration of {totalDuration}, featuring tracks such as "{rawAlbum.tracks[0]?.title}"
-                                {rawAlbum.tracks.length > 1 && rawAlbum.tracks[1] && (
-                                    <> and "{rawAlbum.tracks[1].title}"</>
-                                )}
-                                {rawAlbum.tracks.length > 2 && <> among others</>}.
-                            </p>
-                        )}
-                    </div>
+                    {rawAlbum.path && (
+                        <div className="truncate text-xs text-slate-500" title={rawAlbum.path}>{rawAlbum.path}</div>
+                    )}
                 </div>
             </section>
         </div>

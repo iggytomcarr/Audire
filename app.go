@@ -5,10 +5,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
+	"sync"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed data/albums.json
@@ -16,8 +17,11 @@ var embeddedFS embed.FS
 
 // App struct
 type App struct {
-	ctx     context.Context
-	Library Library
+	ctx          context.Context
+	mu           sync.RWMutex
+	Library      Library
+	folders      []string
+	mediaBaseURL string
 }
 
 // NewApp creates a new App application struct
@@ -30,62 +34,63 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.StartAudioServer(8765) // Start on port 8765
+
+	if folders, err := a.LoadMusicFolders(); err == nil {
+		a.folders = folders
+	}
+	if data, err := os.ReadFile(filepath.Join(configDir(), "library.json")); err == nil {
+		var lib Library
+		if json.Unmarshal(data, &lib) == nil {
+			a.Library = lib
+		}
+	}
+	if err := a.startMediaServer(); err != nil {
+		println("Could not start media server:", err.Error())
+	}
 }
 
-// StartAudioServer starts a local HTTP server to stream audio files
-func (a *App) StartAudioServer(port int) error {
-	// Create a new ServeMux to avoid conflicts
-	mux := http.NewServeMux()
+// configDir is where settings and the scanned library are stored,
+// e.g. %AppData%\Audire on Windows.
+func configDir() string {
+	if dir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(dir, "Audire")
+	}
+	return "data"
+}
 
-	mux.HandleFunc("/audio/", func(w http.ResponseWriter, r *http.Request) {
-		println("Audio request received:", r.URL.Path)
+// GetMediaBaseURL returns the address of the local server that streams audio and cover art
+func (a *App) GetMediaBaseURL() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.mediaBaseURL
+}
 
-		// Add CORS headers FIRST
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Range, Content-Type, Accept-Encoding")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
-		w.Header().Set("Accept-Ranges", "bytes")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			println("OPTIONS request handled")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Extract file path from URL (remove "/audio/" prefix)
-		filePath := r.URL.Path[7:] // removes "/audio/"
-		println("Serving file:", filePath)
-
-		// Security: ensure file exists and is readable
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			println("File not found:", filePath)
-			http.NotFound(w, r)
-			return
-		}
-
-		// Serve the audio file
-		http.ServeFile(w, r, filePath)
-		println("File served successfully")
+// SelectFolder opens a native folder picker and returns the chosen path ("" if cancelled)
+func (a *App) SelectFolder() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Choose a music folder",
 	})
-
-	// Start server in background
-	go func() {
-		addr := "localhost:" + strconv.Itoa(port)
-		println("Starting audio server on", addr)
-		if err := http.ListenAndServe(addr, mux); err != nil {
-			println("Audio server error:", err.Error())
-		}
-	}()
-
-	return nil
 }
 
-// GetAudioStreamURL converts a file path to a streaming URL
-func (a *App) GetAudioStreamURL(filePath string, port int) string {
-	return "http://localhost:" + strconv.Itoa(port) + "/audio/" + filepath.ToSlash(filePath)
+// ScanLibrary rebuilds the library from the saved music folders and caches it to disk
+func (a *App) ScanLibrary() (ScanResult, error) {
+	a.mu.RLock()
+	folders := append([]string(nil), a.folders...)
+	a.mu.RUnlock()
+
+	result := ScanFolders(folders)
+	if result.Albums == nil {
+		result.Albums = []Album{}
+	}
+
+	a.mu.Lock()
+	a.Library = Library{Albums: result.Albums}
+	a.mu.Unlock()
+
+	if err := writeJSON("library.json", Library{Albums: result.Albums}); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 func (a *App) LoadEmbeddedAlbums() error {
@@ -97,34 +102,34 @@ func (a *App) LoadEmbeddedAlbums() error {
 	if err := json.Unmarshal(data, &lib); err != nil {
 		return fmt.Errorf("parsing embedded JSON: %w", err)
 	}
+	a.mu.Lock()
 	a.Library = lib
+	a.mu.Unlock()
 	return nil
 }
 
 func (a *App) SaveMusicFolders(folders []string) error {
-	// Create the data directory if it doesn't exist
-	dataDir := "data"
-
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return fmt.Errorf("creating data directory: %w", err)
+	cleaned := []string{}
+	for _, f := range folders {
+		if f != "" {
+			cleaned = append(cleaned, filepath.Clean(f))
+		}
 	}
+	a.mu.Lock()
+	a.folders = cleaned
+	a.mu.Unlock()
 
-	// Marshal folders to JSON with pretty formatting
-	jsonData, err := json.MarshalIndent(folders, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshaling folders to JSON: %w", err)
-	}
-
-	filePath := filepath.Join(dataDir, "folders.json")
-	if err := os.WriteFile(filePath, jsonData, 0644); err != nil {
-		return fmt.Errorf("writing folders to file: %w", err)
-	}
-	return nil
+	return writeJSON("folders.json", cleaned)
 }
 
 // LoadMusicFolders loads the music folders array from folders.json
 func (a *App) LoadMusicFolders() ([]string, error) {
-	filePath := filepath.Join("data", "folders.json")
+	filePath := filepath.Join(configDir(), "folders.json")
+
+	// Fall back to the old project-relative location used by earlier versions
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		filePath = filepath.Join("data", "folders.json")
+	}
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -143,6 +148,25 @@ func (a *App) LoadMusicFolders() ([]string, error) {
 	if err := json.Unmarshal(data, &folders); err != nil {
 		return nil, fmt.Errorf("parsing folders.json: %w", err)
 	}
+	if folders == nil {
+		folders = []string{}
+	}
 
 	return folders, nil
+}
+
+// writeJSON saves v as pretty-printed JSON in the config directory
+func writeJSON(name string, v any) error {
+	dir := configDir()
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+	jsonData, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling %s: %w", name, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), jsonData, 0644); err != nil {
+		return fmt.Errorf("writing %s: %w", name, err)
+	}
+	return nil
 }

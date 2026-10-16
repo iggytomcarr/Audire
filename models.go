@@ -4,20 +4,35 @@ package main
 type Track struct {
 	Title    string `json:"title"`
 	Duration string `json:"duration"`
+	Path     string `json:"path,omitempty"`
+	Format   string `json:"format,omitempty"`
 }
 
 // Album groups tracks together
 type Album struct {
+	ID          string   `json:"id,omitempty"`
 	Artist      string   `json:"artist"`
 	Album       string   `json:"album"`
+	Year        int      `json:"year,omitempty"`
 	ReleaseDate string   `json:"release_date"`
 	Label       string   `json:"label"`
 	Genre       []string `json:"genre"`
 	Tracks      []Track  `json:"tracks"`
 	CoverImage  string   `json:"cover_image,omitempty"`
+	Path        string   `json:"path,omitempty"`
 }
 
 // Library is a collection of albums
 type Library struct {
 	Albums []Album `json:"albums"`
+}
+
+// ScanResult summarises a scan of the music folders
+type ScanResult struct {
+	Albums       []Album        `json:"albums"`
+	TrackCount   int            `json:"track_count"`
+	Skipped      int            `json:"skipped"`
+	SkippedExts  []string       `json:"skipped_exts"`
+	FolderCounts map[string]int `json:"folder_counts"`
+	Errors       []string       `json:"errors"`
 }

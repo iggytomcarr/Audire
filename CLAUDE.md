@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Audire is a minimalist desktop music player built with Wails v2, combining a Go backend with a React/Vite frontend. The application provides a modern UI for managing and playing music libraries with metadata support.
 
 **Tech Stack:**
-- Backend: Go 1.23 with Wails v2.10.2
+- Backend: Go 1.23 with Wails v2.11.0
 - Frontend: React 18 with Vite 3, Tailwind CSS 3/4
 - Desktop Framework: Wails (uses WebView2 on Windows)
 
@@ -61,26 +61,42 @@ wails dev
 - Creates and binds the App struct for frontend-backend communication
 
 **App Structure:** `app.go`
-- `App` struct holds application context and music library state
-- `startup()`: Called when app initializes, saves context for runtime methods
-- `LoadEmbeddedAlbums()`: Loads album data from embedded `data/albums.json`
-- `LoadAlbumsFromFile()`: Loads albums from disk (for future features)
+- `App` struct holds application context, music library, folders and media server URL (guarded by a mutex)
+- `startup()`: Saves context, loads saved folders and the cached library, starts the media server
+- `ScanLibrary()`: Rebuilds the library from the saved folders and caches it to `library.json`
 - `GetAlbums()`: Returns library albums to frontend
-- `SaveMusicFolders()`: Persists music folder paths to `data/folders.json`
-- `LoadMusicFolders()`: Retrieves saved music folder paths from disk
+- `GetMediaBaseURL()`: Base URL of the local media server
+- `SelectFolder()`: Native folder picker (Wails runtime dialog)
+- `SaveMusicFolders()` / `LoadMusicFolders()`: Persist music folder paths to `folders.json`
+- `LoadEmbeddedAlbums()`: Loads the sample album data from embedded `data/albums.json` (no longer used by the UI)
+
+**Library Scanner:** `library.go`
+- Walks the music folders and turns each folder of audio files into an album (disc sub-folders like `CD 1` are merged)
+- Artist/album/year/track titles are parsed from folder and file names only; it never opens audio files,
+  so cloud placeholders (Dropbox online-only files) are not downloaded by a scan
+- Finds cover art by file name (`cover`/`folder`/`front`, art sub-folders, or the parent folder)
+- Skips formats WebView2 cannot play (WMA, AIFF, APE, ...) and reports them in `ScanResult`
+- Name parsing is covered by `library_test.go` (`go test ./...`)
+
+**Media Server:** `media.go`
+- Loopback-only HTTP server on a random port serving `/audio?path=` and `/cover?path=`
+- Only serves files inside the configured music folders with an allowed extension; supports range requests
+- Sends CORS headers because the frontend routes audio through the Web Audio API (`crossOrigin="anonymous"`)
 
 **Data Models:** `models.go`
-- `Track`: Individual song with title and duration
-- `Album`: Collection of tracks with metadata (artist, album name, release date, label, genres)
+- `Track`: Individual song with title, file path and format (duration is learned by the player)
+- `Album`: Collection of tracks with metadata (id, artist, album name, year, cover image path, folder path)
 - `Library`: Top-level container for album collection
+- `ScanResult`: Albums plus per-folder track counts, skipped files and errors from a scan
 
 **Album Operations:** `albums.go`
 - Contains file I/O operations for album data
 - Handles JSON serialization/deserialization
 
 **Data Storage:**
-- `data/albums.json`: Embedded album metadata (included in binary at build time)
-- `data/folders.json`: Music folder paths (runtime file, synced with frontend)
+- `%AppData%\Audire\folders.json`: Music folder paths (falls back to legacy `data/folders.json` if missing)
+- `%AppData%\Audire\library.json`: Cached scan so the library shows instantly on startup
+- `data/albums.json`: Embedded sample album metadata (included in binary at build time)
 
 ### Frontend (React)
 
@@ -88,23 +104,26 @@ wails dev
 - Mounts root React component
 
 **Main Component:** `frontend/src/App.jsx`
-- Manages application state (view mode, search query, loaded albums, music folders)
-- Loads albums via Wails Go bindings on mount
+- Manages application state (view mode, search query, loaded albums, music folders, scan state)
+- On mount shows the cached library, then rescans; opens Settings when no folders are configured
 - Implements four view modes: grid, list/compact, settings, album details
-- Handles search/filtering across albums
-- Contains fixed footer player UI (not yet functional)
-- Syncs music folder configuration between localStorage and backend
+- Handles search/filtering across albums, artists, years and track titles
+- Fixed footer player: now playing, previous/play/next, seek and volume
 
 **Settings:** `frontend/src/SettingsPage.jsx`
-- Manages music folder configuration via props from App.jsx
-- Persisted through backend's SaveMusicFolders/LoadMusicFolders
-- Counts audio files in selected folders
-- Supports folder browsing via browser file picker API
+- Add folders with the native picker (`SelectFolder`) or by pasting a path; remove folders; rescan
+- Changes are saved through `SaveMusicFolders` and trigger a rescan in App.jsx
+- Shows per-folder track counts, skipped files and scan errors
 
 **Album Details:** `frontend/src/AlbumDetailsPage.jsx`
-- Displays album metadata and track listing
-- Receives album data from App.jsx via props
-- Shows tracks with durations from backend album data
+- Displays album cover, metadata and track listing
+- Play the album or click a track to play from there; highlights the current track
+- Shows durations as they are learned from playback
+
+**Audio Player:** `frontend/src/AudioPlayerContext.jsx`
+- Single `<audio>` element routed through Web Audio (gain + analyser nodes)
+- Queue with next/previous, auto-advance, skip-on-error, volume and seek
+- Space toggles play/pause; hardware media keys work via the Media Session API
 
 **Styling:**
 - Tailwind CSS for all styling
@@ -121,12 +140,12 @@ wails dev
 The frontend calls Go methods directly via auto-generated bindings:
 
 ```javascript
-import { LoadEmbeddedAlbums, GetAlbums, SaveMusicFolders, LoadMusicFolders } from "../wailsjs/go/main/App";
+import { GetAlbums, SaveMusicFolders, LoadMusicFolders, ScanLibrary } from "../wailsjs/go/main/App";
 
 // Call Go methods as promises
-await LoadEmbeddedAlbums();
+await SaveMusicFolders(["G:\\Music"]);
+const result = await ScanLibrary();
 const albums = await GetAlbums();
-await SaveMusicFolders(["/path/to/music"]);
 const folders = await LoadMusicFolders();
 ```
 
@@ -145,6 +164,8 @@ Audire/
 ├── app.go               # Main application struct
 ├── models.go            # Data models
 ├── albums.go            # Album operations
+├── library.go           # Folder scanner (name-based, no file reads)
+├── media.go             # Local media server for audio and cover art
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration
 ├── data/
@@ -202,10 +223,7 @@ Audire/
 
 ## Future Development Areas
 
-Based on the current codebase, these features are partially implemented or planned:
-
-1. **Audio Playback**: Player UI exists but not functional - needs Web Audio API or HTML5 audio integration
-2. **File Scanning**: Folder selection implemented; needs backend audio file scanning and metadata extraction
-3. **Album Cover Images**: UI uses gradient colors; needs cover art extraction from audio files or external APIs
-4. **Track Playing**: UI for play/pause/seek exists but not wired to actual playback engine
-5. **Dynamic Library**: Currently loads from embedded JSON; needs audio file scanning to build library from user folders
+1. **Tag reading**: Metadata comes from folder/file names. Reading tags (and durations) for files that are
+   already local would improve names, but must avoid hydrating cloud placeholder files
+2. **Visualisation**: `analyserNode` is exposed by the player context but nothing draws it yet
+3. **Unsupported formats**: WMA/AIFF/APE are skipped because WebView2 cannot decode them
