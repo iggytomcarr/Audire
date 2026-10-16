@@ -48,9 +48,10 @@ export function AudioPlayerProvider({ children }) {
     );
     const coverURL = useCallback((path) => mediaURL("cover", path), [mediaURL]);
 
-    // Create the Web Audio graph on first play, when a user gesture allows it
-    const ensureAudioGraph = async () => {
-        if (!audioContextRef.current) {
+    // Create the Web Audio graph on demand (first play, or when the visualiser needs it).
+    // It starts suspended until playback resumes it from a user gesture.
+    const getAudioGraph = () => {
+        if (!audioContextRef.current && audioElementRef.current) {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             analyserNodeRef.current = ctx.createAnalyser();
             analyserNodeRef.current.fftSize = 2048;
@@ -63,6 +64,12 @@ export function AudioPlayerProvider({ children }) {
                 .connect(ctx.destination);
             audioContextRef.current = ctx;
         }
+        // The source node is tapped before the volume control so visuals don't fade with volume
+        return { audioContext: audioContextRef.current, sourceNode: sourceNodeRef.current };
+    };
+
+    const ensureAudioGraph = async () => {
+        getAudioGraph();
         if (audioContextRef.current.state === "suspended") {
             await audioContextRef.current.resume();
         }
@@ -254,6 +261,7 @@ export function AudioPlayerProvider({ children }) {
         hasNext: index + 1 < queue.length,
         hasPrevious: index >= 0,
         analyserNode: analyserNodeRef.current, // For visualization
+        getAudioGraph,
     };
 
     return (

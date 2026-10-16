@@ -3,6 +3,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { AudioPlayerProvider } from './AudioPlayerContext';
 import App from "./App";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./index.css";
 
 createRoot(document.getElementById("root")).render(

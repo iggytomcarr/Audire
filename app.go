@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -70,6 +72,24 @@ func (a *App) SelectFolder() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Choose a music folder",
 	})
+}
+
+// OpenFolder shows a folder from the music library in the system file manager
+func (a *App) OpenFolder(path string) error {
+	path = filepath.Clean(path)
+	if !a.inMusicFolder(path) {
+		return fmt.Errorf("%s is not in a music folder", path)
+	}
+	var cmd *exec.Cmd
+	switch goruntime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer.exe", path)
+	case "darwin":
+		cmd = exec.Command("open", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	return cmd.Start()
 }
 
 // ScanLibrary rebuilds the library from the saved music folders and caches it to disk
@@ -153,6 +173,23 @@ func (a *App) LoadMusicFolders() ([]string, error) {
 	}
 
 	return folders, nil
+}
+
+// LoadVisualSettings returns the saved visualiser preset, favourites and cycle options
+func (a *App) LoadVisualSettings() VisualSettings {
+	settings := VisualSettings{Cycle: true, Favorites: []string{}}
+	if data, err := os.ReadFile(filepath.Join(configDir(), "visuals.json")); err == nil {
+		_ = json.Unmarshal(data, &settings)
+	}
+	if settings.Favorites == nil {
+		settings.Favorites = []string{}
+	}
+	return settings
+}
+
+// SaveVisualSettings stores the visualiser preset, favourites and cycle options
+func (a *App) SaveVisualSettings(settings VisualSettings) error {
+	return writeJSON("visuals.json", settings)
 }
 
 // writeJSON saves v as pretty-printed JSON in the config directory

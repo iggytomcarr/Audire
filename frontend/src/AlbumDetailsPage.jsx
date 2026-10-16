@@ -1,7 +1,8 @@
 // frontend/src/AlbumDetailsPage.jsx
 import React, { useMemo } from "react";
-import { Play, Pause, Volume2 } from "lucide-react";
+import { Play, Pause, Volume2, FolderOpen } from "lucide-react";
 import { useAudioPlayer, formatTime } from './AudioPlayerContext';
+import { OpenFolder } from "../wailsjs/go/main/App";
 
 export default function AlbumDetailsPage({ album, onBack }) {
 
@@ -67,15 +68,28 @@ export default function AlbumDetailsPage({ album, onBack }) {
                             <p className="text-slate-300">By {album.artist}</p>
                         </div>
 
-                        {/* Play Album Button */}
-                        <button
-                            className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg transition hover:bg-indigo-400 disabled:opacity-40"
-                            disabled={!tracks.length}
-                            onClick={() => (isThisAlbumPlaying ? togglePlayPause() : playQueue(tracks, 0))}
-                        >
-                            {isThisAlbumPlaying && isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                            {isThisAlbumPlaying && isPlaying ? "Pause" : isThisAlbumPlaying ? "Resume" : "Play Album"}
-                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {rawAlbum.path && (
+                                <button
+                                    className="rounded-lg border border-slate-800 p-3 text-slate-300 transition hover:bg-slate-900 hover:text-slate-100"
+                                    onClick={() => OpenFolder(rawAlbum.path).catch((err) => console.error("Failed to open folder:", err))}
+                                    title="Open in Explorer"
+                                    aria-label="Open album folder in Explorer"
+                                >
+                                    <FolderOpen size={20} />
+                                </button>
+                            )}
+
+                            {/* Play Album Button */}
+                            <button
+                                className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-slate-950 shadow-lg transition hover:bg-indigo-400 disabled:opacity-40"
+                                disabled={!tracks.length}
+                                onClick={() => (isThisAlbumPlaying ? togglePlayPause() : playQueue(tracks, 0))}
+                            >
+                                {isThisAlbumPlaying && isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                                {isThisAlbumPlaying && isPlaying ? "Pause" : isThisAlbumPlaying ? "Resume" : "Play Album"}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-2 text-sm text-slate-300 sm:grid-cols-2 lg:grid-cols-4">

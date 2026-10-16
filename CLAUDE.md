@@ -67,7 +67,9 @@ wails dev
 - `GetAlbums()`: Returns library albums to frontend
 - `GetMediaBaseURL()`: Base URL of the local media server
 - `SelectFolder()`: Native folder picker (Wails runtime dialog)
+- `OpenFolder()`: Opens an album folder in Explorer/Finder (only paths inside the music folders)
 - `SaveMusicFolders()` / `LoadMusicFolders()`: Persist music folder paths to `folders.json`
+- `LoadVisualSettings()` / `SaveVisualSettings()`: Persist the Play view's visual, favourites and cycle options to `visuals.json`
 - `LoadEmbeddedAlbums()`: Loads the sample album data from embedded `data/albums.json` (no longer used by the UI)
 
 **Library Scanner:** `library.go`
@@ -96,6 +98,7 @@ wails dev
 **Data Storage:**
 - `%AppData%\Audire\folders.json`: Music folder paths (falls back to legacy `data/folders.json` if missing)
 - `%AppData%\Audire\library.json`: Cached scan so the library shows instantly on startup
+- `%AppData%\Audire\visuals.json`: Current visualiser preset, favourite presets and cycle options
 - `data/albums.json`: Embedded sample album metadata (included in binary at build time)
 
 ### Frontend (React)
@@ -106,27 +109,40 @@ wails dev
 **Main Component:** `frontend/src/App.jsx`
 - Manages application state (view mode, search query, loaded albums, music folders, scan state)
 - On mount shows the cached library, then rescans; opens Settings when no folders are configured
-- Implements four view modes: grid, list/compact, settings, album details
+- Header tabs PLAY / LIBRARY (styled after Arturia Pigments), a grid/list toggle in Library, and a settings icon
+- Views: `library` (grid or list layout), `album`, `settings`, `play`
 - Handles search/filtering across albums, artists, years and track titles
 - Fixed footer player: now playing, previous/play/next, seek and volume
 
 **Settings:** `frontend/src/SettingsPage.jsx`
-- Add folders with the native picker (`SelectFolder`) or by pasting a path; remove folders; rescan
+- "Music Locations" list (styled after Bitwig's Locations settings): each saved folder with track count,
+  rescan and remove icons, plus an "Add Location" button that opens the native picker (`SelectFolder`)
 - Changes are saved through `SaveMusicFolders` and trigger a rescan in App.jsx
-- Shows per-folder track counts, skipped files and scan errors
+- Shows skipped files and scan errors
 
 **Album Details:** `frontend/src/AlbumDetailsPage.jsx`
 - Displays album cover, metadata and track listing
 - Play the album or click a track to play from there; highlights the current track
 - Shows durations as they are learned from playback
 
+**Play View:** `frontend/src/PlayPage.jsx`
+- Full-window MilkDrop visualiser using Butterchurn (MIT WebGL port of MilkDrop 2) and the
+  butterchurn-presets packs (~395 presets), loaded lazily the first time the tab opens
+- Stays mounted after the first visit and only renders while the tab is visible
+- Overlay: now-playing track with track arrows; previous/next/favourite/cycle controls; a browser panel
+  to search presets and heart favourites; "favourites only" limits next/previous/cycle to favourites
+- Note: the Winamp source repo's MilkDrop/AVS code is Win32/DirectX and under the Winamp Collaborative
+  License (no distribution of modifications), so it is not used here
+
 **Audio Player:** `frontend/src/AudioPlayerContext.jsx`
 - Single `<audio>` element routed through Web Audio (gain + analyser nodes)
+- `getAudioGraph()` returns the AudioContext and the pre-volume source node for the visualiser
 - Queue with next/previous, auto-advance, skip-on-error, volume and seek
 - Space toggles play/pause; hardware media keys work via the Media Session API
 
 **Styling:**
 - Tailwind CSS for all styling
+- Font: Plus Jakarta Sans (Google font, bundled via `@fontsource-variable/plus-jakarta-sans`, works offline)
 - Custom dark theme (slate color palette)
 - Configuration: `frontend/tailwind.config.js`
 
@@ -183,6 +199,7 @@ Audire/
         ├── App.jsx      # Main app component
         ├── SettingsPage.jsx
         ├── AlbumDetailsPage.jsx
+        ├── PlayPage.jsx
         └── AboutPage.jsx
 ```
 
@@ -225,5 +242,4 @@ Audire/
 
 1. **Tag reading**: Metadata comes from folder/file names. Reading tags (and durations) for files that are
    already local would improve names, but must avoid hydrating cloud placeholder files
-2. **Visualisation**: `analyserNode` is exposed by the player context but nothing draws it yet
-3. **Unsupported formats**: WMA/AIFF/APE are skipped because WebView2 cannot decode them
+2. **Unsupported formats**: WMA/AIFF/APE are skipped because WebView2 cannot decode them

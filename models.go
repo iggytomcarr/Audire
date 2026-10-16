@@ -27,6 +27,14 @@ type Library struct {
 	Albums []Album `json:"albums"`
 }
 
+// VisualSettings remembers the Play view's visualiser choices
+type VisualSettings struct {
+	Preset        string   `json:"preset"`
+	Favorites     []string `json:"favorites"`
+	Cycle         bool     `json:"cycle"`
+	FavoritesOnly bool     `json:"favorites_only"`
+}
+
 // ScanResult summarises a scan of the music folders
 type ScanResult struct {
 	Albums       []Album        `json:"albums"`

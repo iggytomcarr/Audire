@@ -1,10 +1,11 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { SkipBack, Play, Pause, SkipForward, Volume2, Loader2 } from "lucide-react";
+import { SkipBack, Play, Pause, SkipForward, Volume2, Loader2, LayoutGrid, List, Settings } from "lucide-react";
 import logo from "./assets/images/audire_menu_logo.png";
 
 import AlbumDetailsPage from "./AlbumDetailsPage";
 import SettingsPage from "./SettingsPage";
+import PlayPage from "./PlayPage";
 import { useAudioPlayer, formatTime } from "./AudioPlayerContext";
 import { GetAlbums, LoadMusicFolders, SaveMusicFolders, ScanLibrary } from "../wailsjs/go/main/App";
 
@@ -23,7 +24,12 @@ const GRADIENTS = [
 
 export default function App() {
     const [query, setQuery] = useState("");
-    const [view, setView] = useState("grid"); // "grid" | "compact" | "settings" | "album"
+    const [view, setView] = useState("library"); // "library" | "album" | "settings" | "play"
+    const [layout, setLayout] = useState("grid"); // library layout: "grid" | "compact"
+    const [playVisited, setPlayVisited] = useState(false);
+    useEffect(() => {
+        if (view === "play") setPlayVisited(true);
+    }, [view]);
     const [loadedAlbums, setLoadedAlbums] = useState([]);
     const [folders, setFolders] = useState([]);
     const [selectedAlbumId, setSelectedAlbumId] = useState(null);
@@ -146,7 +152,7 @@ export default function App() {
                                 value={query}
                                 onChange={(e) => {
                                     setQuery(e.target.value);
-                                    if (view === "settings" || view === "album") setView("grid");
+                                    if (view !== "library") setView("library");
                                 }}
                                 className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2 outline-none placeholder:text-slate-400 focus:border-indigo-400"
                             />
@@ -154,44 +160,71 @@ export default function App() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-start gap-2 sm:justify-end">
-                        <button
-                            onClick={() => setView("grid")}
-                            aria-pressed={view === "grid"}
-                            className={`rounded-lg border px-3 py-2 text-sm transition hover:bg-slate-900 ${
-                                view === "grid" ? "border-indigo-400 bg-slate-900" : "border-slate-800"
-                            }`}
-                            title="Grid view"
-                        >
-                            Grid
-                        </button>
-                        <button
-                            onClick={() => setView("compact")}
-                            aria-pressed={view === "compact"}
-                            className={`rounded-lg border px-3 py-2 text-sm transition hover:bg-slate-900 ${
-                                view === "compact" ? "border-indigo-400 bg-slate-900" : "border-slate-800"
-                            }`}
-                            title="Compact view"
-                        >
-                            List
-                        </button>
+                    <div className="flex items-center justify-start gap-1 sm:justify-end">
+                        {/* Mode tabs, in the style of Pigments' PLAY / SYNTH tabs */}
+                        {[
+                            { id: "play", label: "Play", active: view === "play" },
+                            { id: "library", label: "Library", active: view === "library" || view === "album" },
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setView(tab.id)}
+                                aria-pressed={tab.active}
+                                className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] transition ${
+                                    tab.active ? "bg-indigo-500/20 text-indigo-300" : "text-slate-300 hover:text-white"
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+
+                        {view === "library" && (
+                            <div className="ml-2 flex rounded-lg border border-slate-800">
+                                {[
+                                    { id: "grid", icon: <LayoutGrid size={16} />, title: "Grid view" },
+                                    { id: "compact", icon: <List size={16} />, title: "List view" },
+                                ].map((l) => (
+                                    <button
+                                        key={l.id}
+                                        onClick={() => setLayout(l.id)}
+                                        aria-pressed={layout === l.id}
+                                        className={`p-2 transition first:rounded-l-lg last:rounded-r-lg ${
+                                            layout === l.id ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-100"
+                                        }`}
+                                        title={l.title}
+                                    >
+                                        {l.icon}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
                         <button
                             onClick={() => setView("settings")}
                             aria-pressed={view === "settings"}
-                            className={`rounded-lg border px-3 py-2 text-sm transition hover:bg-slate-900 ${
-                                view === "settings" ? "border-indigo-400 bg-slate-900" : "border-slate-800"
+                            className={`ml-2 rounded-lg p-2 transition hover:bg-slate-900 ${
+                                view === "settings" ? "text-indigo-300" : "text-slate-300 hover:text-white"
                             }`}
                             title="Settings"
                             aria-label="Open Settings"
                         >
-                            ⚙️ Settings
+                            <Settings size={18} />
                         </button>
                     </div>
                 </div>
             </header>
 
+            {/* Play mode: mounted on first visit, then kept alive so the visual carries on where it left off */}
+            {(playVisited || view === "play") && (
+                <PlayPage
+                    active={view === "play"}
+                    playingAlbum={playingAlbum}
+                    onOpenLibrary={() => setView("library")}
+                />
+            )}
+
             {/* Content */}
-            <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-4">
+            <main className={`mx-auto w-full max-w-7xl px-4 pb-28 pt-4 ${view === "play" ? "hidden" : ""}`}>
                 {view === "settings" ? (
                     <SettingsPage
                         folders={folders}
@@ -200,12 +233,12 @@ export default function App() {
                         isScanning={isScanning}
                         scanResult={scanResult}
                         albumCount={albums.length}
-                        onBack={() => setView("grid")}
+                        onBack={() => setView("library")}
                     />
                 ) : view === "album" && selectedAlbum ? (
                     <AlbumDetailsPage
                         album={selectedAlbum}
-                        onBack={() => setView("grid")}
+                        onBack={() => setView("library")}
                     />
                 ) : albums.length === 0 ? (
                     <div className="mx-auto max-w-md py-24 text-center">
@@ -225,7 +258,7 @@ export default function App() {
                     </div>
                 ) : filtered.length === 0 ? (
                     <p className="py-24 text-center text-slate-400">Nothing matches "{query}".</p>
-                ) : view === "grid" ? (
+                ) : layout === "grid" ? (
                     <section aria-label="Albums grid" className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                         {filtered.map((a) => (
                             <article
