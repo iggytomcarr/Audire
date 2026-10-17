@@ -38,7 +38,7 @@ export default function App() {
     const [scanResult, setScanResult] = useState(null);
 
     const player = useAudioPlayer();
-    const { currentTrack, playQueue, coverURL } = player;
+    const { currentTrack, playQueue, coverURL, refreshQueue } = player;
     const [playerHeight, setPlayerHeight] = useState(76);
 
     const rescan = useCallback(async () => {
@@ -129,6 +129,13 @@ export default function App() {
 
     const selectedAlbum = albums.find((a) => a.id === selectedAlbumId);
     const playingAlbum = currentTrack ? albums.find((a) => a.id === currentTrack.albumId) : null;
+
+    // Keep what's playing in step with edits, gathered info and rescans
+    useEffect(() => {
+        const latestByPath = new Map();
+        albums.forEach((a) => a.tracks.forEach((t) => latestByPath.set(t.path, t)));
+        refreshQueue(latestByPath);
+    }, [albums, refreshQueue]);
 
     // Remember where you were in the library (overview or an album, and how far down)
     // so coming back from Play or Settings returns to the same place

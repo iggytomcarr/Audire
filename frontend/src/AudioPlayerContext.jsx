@@ -106,6 +106,16 @@ export function AudioPlayerProvider({ children }) {
         }
     };
 
+    // Swap queued tracks for their latest version (matched by file path) after album
+    // details are edited, so the player shows the new names without restarting playback
+    const refreshQueue = useCallback((latestByPath) => {
+        const updated = queueRef.current.map((t) => latestByPath.get(t.path) || t);
+        if (updated.some((t, i) => t !== queueRef.current[i])) {
+            queueRef.current = updated;
+            setQueue(updated);
+        }
+    }, []);
+
     const playQueue = (tracks, startIndex = 0) => {
         queueRef.current = tracks;
         setQueue(tracks);
@@ -263,6 +273,7 @@ export function AudioPlayerProvider({ children }) {
         hasPrevious: index >= 0,
         analyserNode: analyserNodeRef.current, // For visualization
         getAudioGraph,
+        refreshQueue,
     };
 
     return (
