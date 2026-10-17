@@ -182,6 +182,21 @@ wails dev
   brightness/saturation); all saved in `visuals.json`
 - Note: the Winamp source repo's MilkDrop/AVS code is Win32/DirectX and under the Winamp Collaborative
   License (no distribution of modifications), so it is not used here
+- A Visuals / Meters switch (top right) picks the mode; it is saved as `mode` in `visuals.json`, and MilkDrop
+  stops rendering while Meters is shown
+
+**Meters Mode:** `frontend/src/meters/` (inspired by MiniMeters; our own implementation, no MiniMeters code)
+- `analysis.js`: taps the pre-volume source with AnalyserNodes (8192-point FFT; stereo time domain via a
+  ChannelSplitter; a K-weighted copy for loudness using BiquadFilters per BS.1770) and computes per-frame
+  peaks with hold, VU ballistics (0 VU = -18 dBFS), correlation, band energies and momentary/short-term/
+  integrated LUFS (400 ms blocks every 100 ms, absolute and relative gating); mono files count as dual mono
+- `modules.js`: canvas renderers: spectrogram (log frequency, colour maps), multiband-coloured scrolling
+  waveform, loudness bars and readouts, stereometer with correlation, analogue-style VU dial, triggered
+  oscilloscope and a tilted (+4.5 dB/oct) log spectrum with peak hold and a hover readout (dB, Hz, note)
+- Silence comes back from the analyser as -Infinity; floor it before smoothing or the smoothing sticks
+- The scope and stereometer use a slow display auto-gain; numeric meters are never scaled
+- `MetersView.jsx`: layout, one requestAnimationFrame loop, module toggles and spectrogram colour map
+  (`meter_modules` and `colormap` in `visuals.json`); integrated loudness resets per track or via Reset
 
 **Audio Player:** `frontend/src/AudioPlayerContext.jsx`
 - Single `<audio>` element routed through Web Audio (gain + analyser nodes)
@@ -244,6 +259,7 @@ Audire/
 ├── gather.go            # MusicBrainz/Wikipedia info gathering and metadata edits
 ├── covers.go            # Cover search and saving into album folders
 ├── window.go            # Remember window size/position per screen setup
+├── tools/appicon/       # `go run ./tools/appicon` draws build/appicon.png and build/windows/icon.ico
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration
 ├── data/
@@ -264,10 +280,17 @@ Audire/
         ├── PlayPage.jsx
         ├── PlayerBar.jsx
         ├── AudireLogo.jsx
+        ├── meters/      # Meters mode (analysis, renderers, view)
         ├── AlbumInfo.jsx
         ├── CoverPicker.jsx
         └── AboutPage.jsx
 ```
+
+## App Icon
+
+The window/taskbar icon is `build/windows/icon.ico`, generated with `build/appicon.png` by
+`go run ./tools/appicon` (the logo's gradient waveform on a dark tile, each size drawn separately).
+`build/` is tracked in git; only `build/bin/` is ignored.
 
 ## Important Notes
 

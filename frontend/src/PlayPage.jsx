@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Heart, Repeat, ListMusic, X, Search, SlidersHorizontal } from "lucide-react";
 import { useAudioPlayer } from "./AudioPlayerContext";
 import { LoadVisualSettings, SaveVisualSettings } from "../wailsjs/go/main/App";
+import MetersView, { METER_MODULES } from "./meters/MetersView";
 
 const CYCLE_SECONDS = 30;
 const MAX_FPS = 60;
@@ -92,6 +93,9 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
                 soften: saved.soften || 0,
                 dim: saved.dim || 0,
                 adjust_open: !!saved.adjust_open,
+                mode: saved.mode === "meters" ? "meters" : "milkdrop",
+                meter_modules: saved.meter_modules ?? METER_MODULES.map((m) => m.id),
+                colormap: saved.colormap || "magma",
                 favorites: (saved.favorites || []).filter((f) => presets[f]),
                 preset: presets[saved.preset] ? saved.preset : names[Math.floor(Math.random() * names.length)],
             });
@@ -123,8 +127,10 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
     // scaled down; many presets also move a fixed amount per frame, so fewer frames are drawn
     // (capped at 60fps, which also stops high-refresh screens running visuals too fast).
     // Soften blends each frame into the last ones, which smooths out strobing.
+    const meters = settings?.mode === "meters";
+
     useEffect(() => {
-        if (!active) return;
+        if (!active || meters) return;
         let raf;
         let last = performance.now();
         let pending = 0;
@@ -148,7 +154,7 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
         };
         raf = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(raf);
-    }, [active]);
+    }, [active, meters]);
 
     // Load the chosen preset and remember settings on disk
     useEffect(() => {
@@ -223,13 +229,35 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
             on ? "border-indigo-300/70 bg-indigo-500/60 text-white" : "border-slate-500/50 bg-slate-950/40 text-slate-200 hover:border-slate-300"
         }`;
 
+    // Switch between the MilkDrop visuals and the meters dashboard
+    const modeSwitch = settings && (
+        <div className="flex rounded-full border border-slate-700/70 bg-slate-950/60 p-0.5 text-[11px] font-bold uppercase tracking-[0.14em] backdrop-blur">
+            {[
+                ["milkdrop", "Visuals"],
+                ["meters", "Meters"],
+            ].map(([id, label]) => (
+                <button
+                    key={id}
+                    onClick={() => update({ mode: id })}
+                    aria-pressed={settings.mode === id}
+                    className={`rounded-full px-3 py-1 transition ${settings.mode === id ? "bg-indigo-500/30 text-indigo-200" : "text-slate-400 hover:text-white"}`}
+                >
+                    {label}
+                </button>
+            ))}
+        </div>
+    );
+
     return (
         <section className={`fixed inset-0 bg-slate-950 ${active ? "" : "hidden"}`} aria-label="Play">
             {/* Dim lowers brightness and saturation without changing how it reacts to the music */}
-            <div className="absolute inset-0" style={{ filter: settings?.dim ? `brightness(${1 - settings.dim * 0.6}) saturate(${1 - settings.dim * 0.6})` : undefined }}>
+            <div className={`absolute inset-0 ${meters ? "hidden" : ""}`} style={{ filter: settings?.dim ? `brightness(${1 - settings.dim * 0.6}) saturate(${1 - settings.dim * 0.6})` : undefined }}>
                 <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "opacity-0" : ""}`} />
                 <canvas ref={softCanvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "" : "hidden"}`} />
             </div>
+            {meters && <MetersView active={active} settings={settings} update={update} bottomInset={bottomInset} toolbar={modeSwitch} />}
+            {!meters && <>
+            {settings && <div className="absolute right-6 top-[76px] z-10">{modeSwitch}</div>}
             {/* Soften the edges so the overlay text stays readable over bright presets */}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950/60 via-transparent to-slate-950/40" />
 
@@ -417,6 +445,7 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
                     </ul>
                 </aside>
             )}
+            </>}
         </section>
     );
 }

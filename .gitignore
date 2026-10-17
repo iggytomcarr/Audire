@@ -10,10 +10,10 @@ frontend/dist/
 frontend/wailsjs/
 
 # --- Go build outputs ---
+# build/ holds the app icon and Windows manifest; only the compiled output is ignored
 bin/
-build/
 **/bin/
-**/build/
+build/bin/
 *.exe
 *.dll
 *.so
