@@ -17,6 +17,7 @@ type Album struct {
 	ReleaseDate   string   `json:"release_date"`
 	Label         string   `json:"label"`
 	CatalogNumber string   `json:"catalog_number,omitempty"`
+	Shelf         string   `json:"shelf,omitempty"` // Room view shelf set by the user; empty means by genre
 	Genre         []string `json:"genre"`
 	Tracks        []Track  `json:"tracks"`
 	CoverImage    string   `json:"cover_image,omitempty"`

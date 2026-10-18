@@ -5,6 +5,7 @@ import { useAudioPlayer, formatTime } from './AudioPlayerContext';
 import { OpenFolder, SaveAlbumMetadata, GetAlbumSidecar } from "../wailsjs/go/main/App";
 import AlbumInfo from "./AlbumInfo";
 import CoverPicker from "./CoverPicker";
+import { SHELF_CATEGORIES, categoryName, genreCategory } from "./room/categories";
 
 const inputClass = "w-full rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-sm outline-none focus:border-indigo-400";
 
@@ -53,6 +54,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
             album: album.title,
             artist: album.artist,
             label: rawAlbum.label || "",
+            shelf: rawAlbum.shelf || "",
             year: album.year || "",
             genres: (rawAlbum.genre || []).join(", "),
             titles: Object.fromEntries(tracks.map((t) => [t.path, t.title])),
@@ -81,6 +83,7 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
                 album: draft.album,
                 artist: draft.artist,
                 label: draft.label,
+                shelf: draft.shelf,
                 year: Number(draft.year) || 0,
                 genres: draft.genres.split(",").map((g) => g.trim()).filter(Boolean),
                 track_titles: changedTitles,
@@ -135,7 +138,14 @@ export default function AlbumDetailsPage({ album, onBack, onAlbumUpdated, librar
                                 <label className="text-xs text-slate-400">Artist<input className={inputClass} value={draft.artist} onChange={(e) => setDraft({ ...draft, artist: e.target.value })} /></label>
                                 <label className="text-xs text-slate-400">Label<input className={inputClass} value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} /></label>
                                 <label className="text-xs text-slate-400">Year<input className={inputClass} inputMode="numeric" value={draft.year} onChange={(e) => setDraft({ ...draft, year: e.target.value.replace(/\D/g, "").slice(0, 4) })} /></label>
-                                <label className="text-xs text-slate-400 sm:col-span-4">Genres (comma separated)<input className={inputClass} value={draft.genres} onChange={(e) => setDraft({ ...draft, genres: e.target.value })} /></label>
+                                <label className="text-xs text-slate-400 sm:col-span-3">Genres (comma separated)<input className={inputClass} value={draft.genres} onChange={(e) => setDraft({ ...draft, genres: e.target.value })} /></label>
+                                <label className="text-xs text-slate-400">
+                                    Shelf
+                                    <select className={inputClass} value={draft.shelf} onChange={(e) => setDraft({ ...draft, shelf: e.target.value })}>
+                                        <option value="">Automatic ({categoryName(genreCategory({ ...rawAlbum, genre: draft.genres.split(",").map((g) => g.trim()).filter(Boolean) }))})</option>
+                                        {SHELF_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </label>
                             </div>
                         ) : (
                             <div className="min-w-0">

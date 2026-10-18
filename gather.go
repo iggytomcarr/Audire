@@ -312,8 +312,8 @@ func wikipediaSections(articleURL string) (title string, sections []WikiSection,
 	var res struct {
 		Query struct {
 			Pages map[string]struct {
-				Title   string `json:"title"`
-				Extract string `json:"extract"`
+				Title   string  `json:"title"`
+				Extract string  `json:"extract"`
 				Missing *string `json:"missing"`
 			} `json:"pages"`
 		} `json:"query"`
@@ -469,6 +469,7 @@ type AlbumEdit struct {
 	Album       string            `json:"album"`
 	Artist      string            `json:"artist"`
 	Label       string            `json:"label"`
+	Shelf       string            `json:"shelf"`
 	Year        int               `json:"year"`
 	Genres      []string          `json:"genres"`
 	TrackTitles map[string]string `json:"track_titles"`
@@ -491,6 +492,7 @@ func (a *App) SaveAlbumMetadata(albumID string, edit AlbumEdit) (Album, error) {
 	m.Album = strings.TrimSpace(edit.Album)
 	m.Artist = strings.TrimSpace(edit.Artist)
 	m.Label = strings.TrimSpace(edit.Label)
+	m.Shelf = strings.TrimSpace(edit.Shelf)
 	m.Year = edit.Year
 	m.Genres = normaliseGenres(edit.Genres)
 	if m.Tracks == nil {

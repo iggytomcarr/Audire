@@ -28,3 +28,8 @@ input[type="range"] { @apply accent-indigo-400; }
     filter: brightness(0.95);
   }
 }
+
+/* Room view: a record spinning at 33⅓ rpm */
+@keyframes room-spin {
+  to { transform: rotate(360deg); }
+}

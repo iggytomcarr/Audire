@@ -1,12 +1,13 @@
 // /frontend/src/App.jsx
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { Play, LayoutGrid, List, Settings } from "lucide-react";
+import { Play, LayoutGrid, List, Settings, Sofa } from "lucide-react";
 import AudireLogo from "./AudireLogo";
 
 import AlbumDetailsPage from "./AlbumDetailsPage";
 import SettingsPage from "./SettingsPage";
 import PlayPage from "./PlayPage";
 import PlayerBar from "./PlayerBar";
+import RoomView from "./room/RoomView";
 import { useAudioPlayer } from "./AudioPlayerContext";
 import { GetAlbums, LoadMusicFolders, SaveMusicFolders, ScanLibrary } from "../wailsjs/go/main/App";
 
@@ -26,7 +27,22 @@ const GRADIENTS = [
 export default function App() {
     const [query, setQuery] = useState("");
     const [view, setView] = useState("library"); // "library" | "album" | "settings" | "play"
-    const [layout, setLayout] = useState("grid"); // library layout: "grid" | "compact"
+    // Library layout: "grid" | "compact" | "room"; remembered between sessions
+    const [layout, setLayoutState] = useState(() => {
+        try {
+            return localStorage.getItem("audire.layout") || "grid";
+        } catch {
+            return "grid";
+        }
+    });
+    const setLayout = (l) => {
+        setLayoutState(l);
+        try {
+            localStorage.setItem("audire.layout", l);
+        } catch {
+            // a convenience only
+        }
+    };
     const [playVisited, setPlayVisited] = useState(false);
     useEffect(() => {
         if (view === "play") setPlayVisited(true);
@@ -221,6 +237,7 @@ export default function App() {
                                 {[
                                     { id: "grid", icon: <LayoutGrid size={16} />, title: "Grid view" },
                                     { id: "compact", icon: <List size={16} />, title: "List view" },
+                                    { id: "room", icon: <Sofa size={16} />, title: "Listening room" },
                                 ].map((l) => (
                                     <button
                                         key={l.id}
@@ -263,7 +280,19 @@ export default function App() {
             )}
 
             {/* Content */}
-            <main className={`mx-auto w-full max-w-7xl px-4 pt-4 ${view === "play" ? "hidden" : ""}`} style={{ paddingBottom: playerHeight + 32 }}>
+            {/* The listening room replaces the grid while there is no search */}
+            {view === "library" && layout === "room" && !query.trim() && albums.length > 0 && (
+                <RoomView
+                    active={view === "library"}
+                    albums={albums}
+                    playingAlbum={playingAlbum}
+                    onOpenAlbum={handleAlbumClick}
+                    onPlayAlbum={(a) => a.tracks.length && playQueue(a.tracks, 0)}
+                    bottomInset={playerHeight}
+                />
+            )}
+
+            <main className={`mx-auto w-full max-w-7xl px-4 pt-4 ${view === "play" || (view === "library" && layout === "room" && !query.trim() && albums.length > 0) ? "hidden" : ""}`} style={{ paddingBottom: playerHeight + 32 }}>
                 {view === "settings" ? (
                     <SettingsPage
                         folders={folders}
@@ -272,6 +301,7 @@ export default function App() {
                         isScanning={isScanning}
                         scanResult={scanResult}
                         albumCount={albums.length}
+                        onLibraryChanged={refreshAlbums}
                         onBack={() => navigate("library")}
                     />
                 ) : view === "album" && selectedAlbum ? (

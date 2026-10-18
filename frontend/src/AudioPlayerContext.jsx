@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { GetMediaBaseURL } from '../wailsjs/go/main/App';
+import { GetMediaBaseURL, RecordPlay } from '../wailsjs/go/main/App';
 
 const AudioPlayerContext = createContext();
 
@@ -24,6 +24,7 @@ export function AudioPlayerProvider({ children }) {
     // HTML Audio element (we still need this for easier playback control)
     const audioElementRef = useRef(null);
     const queueRef = useRef([]);
+    const playCountedRef = useRef(false);
     const indexRef = useRef(-1);
 
     const currentTrack = index >= 0 ? queue[index] || null : null;
@@ -88,6 +89,7 @@ export function AudioPlayerProvider({ children }) {
         if (!track || !audio) return;
 
         indexRef.current = i;
+        playCountedRef.current = false;
         setIndex(i);
         setError(null);
         setCurrentTime(0);
@@ -164,7 +166,15 @@ export function AudioPlayerProvider({ children }) {
         const audio = audioElementRef.current;
         if (!audio) return;
 
-        const onTime = () => setCurrentTime(audio.currentTime);
+        const onTime = () => {
+            setCurrentTime(audio.currentTime);
+            // Count a listen once a track has played for 30 seconds (or half of a short one)
+            const track = queueRef.current[indexRef.current];
+            if (!playCountedRef.current && track && audio.currentTime >= Math.min(30, (audio.duration || 60) / 2)) {
+                playCountedRef.current = true;
+                RecordPlay(track.albumId).catch(() => {});
+            }
+        };
         const onMeta = () => {
             setDuration(audio.duration);
             const track = queueRef.current[indexRef.current];

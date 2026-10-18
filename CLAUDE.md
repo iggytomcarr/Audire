@@ -134,6 +134,8 @@ wails dev
 - `%AppData%\Audire\library.json`: Cached scan so the library shows instantly on startup
 - `%AppData%\Audire\visuals.json`: Current visualiser preset, favourite presets and cycle/speed/soften/dim options
 - `%AppData%\Audire\window.json`: Window size, position and maximised state per screen setup
+- `%AppData%\Audire\rooms.json`: The user's listening rooms (format owned by the frontend; see Room View)
+- `%AppData%\Audire\stats.json`: Play counts per album id (a listen counts after 30 s, or half a short track)
 - `<album folder>\audire.json`: Per-album edits, source links and gathered info (see Album Sidecar)
 - `<album folder>\cover.<ext>`: Cover chosen in the cover picker
 - `data/albums.json`: Embedded sample album metadata (included in binary at build time)
@@ -147,7 +149,8 @@ wails dev
 - Manages application state (view mode, search query, loaded albums, music folders, scan state)
 - On mount shows the cached library, then rescans; opens Settings when no folders are configured
 - Header tabs PLAY / LIBRARY (styled after Arturia Pigments), a grid/list toggle in Library, and a settings icon
-- Views: `library` (grid or list layout), `album`, `settings`, `play`
+- Views: `library` (grid, list or room layout; the layout is remembered in localStorage), `album`, `settings`, `play`
+- The room layout replaces the grid only while there is no search
 - Handles search/filtering across albums, artists, years and track titles
 - Passes the player bar's height to pages so content is never hidden behind it
 
@@ -201,6 +204,32 @@ wails dev
   user's own presets, which can be saved, renamed, updated and deleted
 - Saved in `visuals.json`: `retro_lamp` / `retro_display` (hex; the old "amber"/"cyan" style names are still
   read), `retro_link`, `retro_preset` (id, or "custom") and `retro_presets` (the user's presets)
+
+**Room View:** `frontend/src/room/` (the library as a listening room; Microsoft Bob style, built to be extended)
+- A room is `{ id, name, theme, items: [{ id, type, x, y, scale, z, props }] }` in a 1600×900 space (floor at
+  y = 640), scaled to fit. Rooms are saved as JSON through `LoadRooms`/`SaveRooms` (`room.go`), which store the
+  string as-is, so new object types or properties need no backend change
+- `registry.js` lists every object type. **To add an object**, write a module exporting
+  `{ type, label, size(props), defaults, fields, Component }` and add it to `ITEM_TYPES`; the Add menu, editor,
+  saving and loading all work from the registry. `fields` drive the properties panel (`EditorPanels.jsx`):
+  types `select`, `number`, `colour`, `toggle`, `category`, `album`, `cubbies`, with optional `show(props)`
+- `runtime.js`: `RoomContext` gives objects the library, play counts, theme, Retro colours and actions
+  (`openCrate`, `openAlbum`, `playAlbum`). `RoomView` runs one animation loop with one analyser; objects call
+  `useFrame((levels, dt) => …)` and update their own DOM refs (no React render per frame).
+  `useCoverColours` samples each cover's average colour for spines, six covers at a time (covers may be
+  Dropbox online-only files)
+- Objects: record shelf (cubbies per category; spines; the shelf's most played album face-out), turntable
+  (spins while playing with the playing cover as its label), mini hi-fi rack (Retro colours), speaker (woofer
+  follows the bass), lava lamp, framed cover and record on a stand (show a chosen album, most played #N, or a
+  shelf's most played; `albumPick.js`), sideboard, lounge chair, rug, plant
+- `categories.js`: shelves are genre families; an album uses its `shelf` override (Shelf in the album edit
+  form, stored in `audire.json`) or the first family its genres match, else Unsorted
+- `templates.js`: four starter rooms (Navy den, Golden hour, Daylight, Record room); all four are created on
+  first run. Rooms can be switched, created from a template, renamed, duplicated and deleted; Edit room
+  allows drag to move, corner-drag to resize, layer order, duplicate, delete (also Delete key) and themes
+  (`themes.js`). Clicking a shelf opens its crate; clicking a sleeve opens the album
+- `room.go`: `RecordPlay`/`GetPlayStats`, `LoadRooms`/`SaveRooms`, and `GatherAllAlbumInfo` (background,
+  `gatherall:progress` events, `CancelGatherAll`, `GatherAllStatus`) used by Settings › Album info
 
 **Meters Mode:** `frontend/src/meters/` (inspired by MiniMeters; our own implementation, no MiniMeters code)
 - `analysis.js`: taps the pre-volume source with AnalyserNodes (8192-point FFT; stereo time domain via a
@@ -279,6 +308,7 @@ Audire/
 ├── gather.go            # MusicBrainz/Wikipedia info gathering and metadata edits
 ├── covers.go            # Cover search and saving into album folders
 ├── window.go            # Remember window size/position per screen setup
+├── room.go              # Play counts, rooms storage and gather-all for the Room view
 ├── tools/appicon/       # `go run ./tools/appicon` draws build/appicon.png and build/windows/icon.ico
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration
@@ -302,6 +332,7 @@ Audire/
         ├── AudireLogo.jsx
         ├── meters/      # Meters mode (analysis, renderers, view)
         ├── retro/       # Retro mode (1980s hi-fi rack)
+        ├── room/        # Library Room view (registry, objects, editor, templates)
         ├── AlbumInfo.jsx
         ├── CoverPicker.jsx
         └── AboutPage.jsx

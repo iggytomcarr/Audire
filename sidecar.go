@@ -29,6 +29,7 @@ type AlbumMetadata struct {
 	Album  string                   `json:"album,omitempty"`
 	Artist string                   `json:"artist,omitempty"`
 	Label  string                   `json:"label,omitempty"`
+	Shelf  string                   `json:"shelf,omitempty"` // Room view shelf chosen by the user
 	Year   int                      `json:"year,omitempty"`
 	Genres []string                 `json:"genres,omitempty"`
 	Tracks map[string]TrackMetadata `json:"tracks,omitempty"` // keyed by file path relative to the album folder
@@ -150,6 +151,7 @@ func applySidecar(album *Album, sc *AlbumSidecar) {
 	if m.Artist != "" {
 		album.Artist = m.Artist
 	}
+	album.Shelf = m.Shelf
 	if m.Label != "" && m.Label != album.Label {
 		album.Label = m.Label
 		album.CatalogNumber = ""
