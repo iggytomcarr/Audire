@@ -31,19 +31,30 @@ type Library struct {
 
 // VisualSettings remembers the Play view's visualiser choices
 type VisualSettings struct {
-	Preset        string   `json:"preset"`
-	Favorites     []string `json:"favorites"`
-	Cycle         bool     `json:"cycle"`
-	FavoritesOnly bool     `json:"favorites_only"`
-	Speed         float64  `json:"speed"`  // 0.25–1: how fast visuals animate
-	Soften        float64  `json:"soften"` // 0–1: how much frames blend to calm flashing
-	Dim           float64  `json:"dim"`    // 0–1: how much brightness and colour are muted
-	AdjustOpen    bool     `json:"adjust_open"`
-	Mode          string   `json:"mode"`          // "milkdrop", "meters" or "retro"
-	MeterModules  []string `json:"meter_modules"` // meters shown in Meters mode; nil means all
-	Colormap      string   `json:"colormap"`      // spectrogram colour map
-	RetroLamp     string   `json:"retro_lamp"`    // Retro mode VU lamps: "amber" or "blue"
-	RetroDisplay  string   `json:"retro_display"` // Retro mode fluorescent display: "cyan" or "green"
+	Preset        string        `json:"preset"`
+	Favorites     []string      `json:"favorites"`
+	Cycle         bool          `json:"cycle"`
+	FavoritesOnly bool          `json:"favorites_only"`
+	Speed         float64       `json:"speed"`  // 0.25–1: how fast visuals animate
+	Soften        float64       `json:"soften"` // 0–1: how much frames blend to calm flashing
+	Dim           float64       `json:"dim"`    // 0–1: how much brightness and colour are muted
+	AdjustOpen    bool          `json:"adjust_open"`
+	Mode          string        `json:"mode"`          // "milkdrop", "meters" or "retro"
+	MeterModules  []string      `json:"meter_modules"` // meters shown in Meters mode; nil means all
+	Colormap      string        `json:"colormap"`      // spectrogram colour map
+	RetroLamp     string        `json:"retro_lamp"`    // Retro mode VU lamp colour (hex)
+	RetroDisplay  string        `json:"retro_display"` // Retro mode fluorescent display colour (hex)
+	RetroLink     bool          `json:"retro_link"`    // one colour for every meter
+	RetroPreset   string        `json:"retro_preset"`  // id of the chosen preset, built in or the user's
+	RetroPresets  []RetroPreset `json:"retro_presets"` // the user's saved presets
+}
+
+// RetroPreset is a named Retro mode colour scheme saved by the user
+type RetroPreset struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Lamp    string `json:"lamp"`
+	Display string `json:"display"`
 }
 
 // ScanResult summarises a scan of the music folders

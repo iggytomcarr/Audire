@@ -3,9 +3,11 @@
 // needle VU meters (after the Technics SE-A3), a 14-band fluorescent spectrum analyser
 // (after the Sansui SE-88) and a cassette deck display with the track, time and levels.
 // Model names on the units are invented; no real brand marks are used.
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useAudioPlayer } from "../AudioPlayerContext";
 import { analyse, createMeterState, createTaps } from "../meters/analysis";
+import { displayColours, lampColours } from "./colours";
+import ThemeMenu from "./ThemeMenu";
 
 // The rack is drawn in this design space and scaled to fit the window
 const DW = 1000, DH = 770;
@@ -18,14 +20,6 @@ const SEGMENTS = 22;
 // around 1 kHz) so the top bands move as much as the bass, as on the original units
 const BAND_FLOOR = -62, BAND_CEIL = -4, TILT = 2.5;
 
-const LAMPS = {
-    amber: { face: "#f2c06b", centre: "#ffe2a3", edge: "#b8792a", ink: "#2a1a05" },
-    blue: { face: "#5ea8ff", centre: "#a9d2ff", edge: "#1f5fae", ink: "#05203d" },
-};
-const VFD = {
-    cyan: { on: "#8ff6ff", off: "#0f3138", dim: "#2f7f88" },
-    green: { on: "#8dffa8", off: "#10331a", dim: "#2f8a48" },
-};
 const AMBER_LED = "#ffb347", RED_LED = "#ff5a3c";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -78,7 +72,7 @@ function unit(ctx, x, y, w, h, brand, caption) {
 }
 
 function vuMeter(ctx, x, y, w, h, needle, channel, peakLit, lamp) {
-    const L = LAMPS[lamp];
+    const L = lamp;
     roundRect(ctx, x - 5, y - 5, w + 10, h + 10, 7);
     ctx.fillStyle = "#050506";
     ctx.fill();
@@ -141,7 +135,9 @@ export default function RetroView({ active, settings, update, bottomInset, toolb
     const { getAudioGraph, currentTrack, currentTime, queueIndex, isPlaying } = useAudioPlayer();
     const canvasRef = useRef(null);
     const live = useRef({});
-    live.current = { currentTrack, currentTime, queueIndex, isPlaying, lamp: settings.retro_lamp, display: settings.retro_display };
+    const lamp = useMemo(() => lampColours(settings.retro_lamp), [settings.retro_lamp]);
+    const display = useMemo(() => displayColours(settings.retro_display), [settings.retro_display]);
+    live.current = { currentTrack, currentTime, queueIndex, isPlaying, lamp, display };
 
     useEffect(() => {
         if (!active) return;
@@ -188,7 +184,7 @@ export default function RetroView({ active, settings, update, bottomInset, toolb
             taps.read();
             analyse(taps, st, now / 1000, dt);
             const { currentTrack, currentTime, queueIndex, isPlaying, lamp, display } = live.current;
-            const V = VFD[display] || VFD.cyan;
+            const V = display;
 
             // Band levels: power in each band, quick to rise, slower to fall, with held peaks
             for (let i = 0; i < BANDS.length; i++) {
@@ -340,30 +336,10 @@ export default function RetroView({ active, settings, update, bottomInset, toolb
         };
     }, [active]);
 
-    const choice = (key, value, label) => (
-        <button
-            key={value}
-            onClick={() => update({ [key]: value })}
-            aria-pressed={settings[key] === value}
-            className={`rounded-full px-2.5 py-0.5 transition ${settings[key] === value ? "bg-indigo-500/30 text-indigo-200" : "text-slate-400 hover:text-white"}`}
-        >
-            {label}
-        </button>
-    );
-
     return (
         <div className="absolute inset-x-0 top-0 flex flex-col gap-2 px-4 pt-[72px]" style={{ bottom: bottomInset + 8 }}>
             <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] font-semibold">
-                <span className="text-slate-500">Meter lamps</span>
-                <div className="flex rounded-full border border-slate-700/70 p-0.5">
-                    {choice("retro_lamp", "amber", "Amber")}
-                    {choice("retro_lamp", "blue", "Blue")}
-                </div>
-                <span className="ml-2 text-slate-500">Display</span>
-                <div className="flex rounded-full border border-slate-700/70 p-0.5">
-                    {choice("retro_display", "cyan", "Cyan")}
-                    {choice("retro_display", "green", "Green")}
-                </div>
+                <ThemeMenu settings={settings} update={update} />
                 <div className="ml-2">{toolbar}</div>
             </div>
             <canvas ref={canvasRef} className="min-h-0 w-full flex-1" />

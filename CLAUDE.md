@@ -194,7 +194,13 @@ wails dev
   so the top bands move like the bass
 - Lit fluorescent elements are drawn to an offscreen glow layer, composited blurred ("lighter") then
   crisp; the glow layer must be resized with the canvas whenever the render loop restarts
-- Options: meter lamps amber/blue and display cyan/green (`retro_lamp`, `retro_display` in `visuals.json`)
+- Colours (`retro/ThemeMenu.jsx`, `retro/colours.js`): any colour from a palette or a custom picker; by default
+  one colour drives every meter (`retro_link`), or the VU lamps and the display can differ. `colours.js`
+  derives the backlit face/centre/edge/ink and the display's lit/unlit/label tones from the hue, with lightness
+  fixed per role so dark picks still glow. Built-in presets (Classic, Midnight, All amber, Arctic) plus the
+  user's own presets, which can be saved, renamed, updated and deleted
+- Saved in `visuals.json`: `retro_lamp` / `retro_display` (hex; the old "amber"/"cyan" style names are still
+  read), `retro_link`, `retro_preset` (id, or "custom") and `retro_presets` (the user's presets)
 
 **Meters Mode:** `frontend/src/meters/` (inspired by MiniMeters; our own implementation, no MiniMeters code)
 - `analysis.js`: taps the pre-volume source with AnalyserNodes (8192-point FFT; stereo time domain via a

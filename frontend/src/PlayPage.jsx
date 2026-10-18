@@ -7,6 +7,7 @@ import { useAudioPlayer } from "./AudioPlayerContext";
 import { LoadVisualSettings, SaveVisualSettings } from "../wailsjs/go/main/App";
 import MetersView, { METER_MODULES } from "./meters/MetersView";
 import RetroView from "./retro/RetroView";
+import { normaliseHex } from "./retro/colours";
 
 const CYCLE_SECONDS = 30;
 const MAX_FPS = 60;
@@ -95,8 +96,12 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
                 dim: saved.dim || 0,
                 adjust_open: !!saved.adjust_open,
                 mode: ["meters", "retro"].includes(saved.mode) ? saved.mode : "milkdrop",
-                retro_lamp: saved.retro_lamp === "blue" ? "blue" : "amber",
-                retro_display: saved.retro_display === "green" ? "green" : "cyan",
+                retro_lamp: normaliseHex(saved.retro_lamp, "#f2c06b"),
+                retro_display: normaliseHex(saved.retro_display, "#8ff6ff"),
+                retro_link: saved.retro_preset ? !!saved.retro_link : true,
+                // Go sends a missing preset as "", so fall back with ||; "custom" means none chosen
+                retro_preset: saved.retro_preset || "classic",
+                retro_presets: saved.retro_presets ?? [],
                 meter_modules: saved.meter_modules ?? METER_MODULES.map((m) => m.id),
                 colormap: saved.colormap || "magma",
                 favorites: (saved.favorites || []).filter((f) => presets[f]),
