@@ -111,19 +111,41 @@ export function waveform(ctx, w, h, dpr, env, mod) {
     ctx.fillRect(w - step, mid0 - rh * mid0 * 0.95, step, Math.max(1, rh * h * 0.95));
 }
 
-// Vertical bar meter used by the loudness module
-function bar(ctx, x, y, bw, bh, value, min, max, fill, hold) {
+// IEC 60268-18 meter scale: maps dB to a 0..1 height that gives the top 20 dB half the
+// meter, so the few dB a loud master moves through are clearly visible
+function meterScale(db) {
+    if (!Number.isFinite(db) || db < -70) return 0;
+    let p;
+    if (db < -60) p = (db + 70) * 0.25;
+    else if (db < -50) p = (db + 60) * 0.5 + 2.5;
+    else if (db < -40) p = (db + 50) * 0.75 + 7.5;
+    else if (db < -30) p = (db + 40) * 1.5 + 15;
+    else if (db < -20) p = (db + 30) * 2 + 30;
+    else p = (db + 20) * 2.5 + 50;
+    return clamp(p / 100, 0, 1);
+}
+
+// Vertical bar for the loudness module: a solid level, an optional faint peak behind it
+// and an optional peak-hold line
+function bar(ctx, x, y, bw, bh, { level, peak, hold, fill }) {
     ctx.fillStyle = "rgba(30, 41, 59, 0.7)";
     ctx.fillRect(x, y, bw, bh);
-    const t = clamp((value - min) / (max - min), 0, 1);
     ctx.fillStyle = fill;
+    if (peak !== undefined) {
+        const tp = meterScale(peak);
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(x, y + bh * (1 - tp), bw, bh * tp);
+        ctx.globalAlpha = 1;
+    }
+    const t = meterScale(level);
     ctx.fillRect(x, y + bh * (1 - t), bw, bh * t);
     if (hold !== undefined && Number.isFinite(hold)) {
-        const th = clamp((hold - min) / (max - min), 0, 1);
         ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(x, y + bh * (1 - th), bw, Math.max(1, bw * 0.08));
+        ctx.fillRect(x, y + bh * (1 - meterScale(hold)), bw, Math.max(1, bw * 0.08));
     }
 }
+
+const LUFS_REFERENCE = -14; // the loudness most streaming services normalise to
 
 export function loudness(ctx, w, h, dpr, env) {
     const { st } = env;
@@ -133,42 +155,60 @@ export function loudness(ctx, w, h, dpr, env) {
     const bw = Math.max(6 * dpr, Math.min(16 * dpr, w * 0.06));
     const gap = bw * 0.45;
     let x = 30 * dpr;
+    const yOf = (db) => top + bh * (1 - meterScale(db));
 
-    // dB scale
+    // Scale
     ctx.font = FONT(dpr, 9);
-    ctx.fillStyle = LABEL;
     ctx.textAlign = "right";
-    for (let db = 0; db >= -60; db -= 12) {
-        const y = top + bh * (-db / 60);
-        ctx.fillText(String(db), x - 6 * dpr, y + 3 * dpr);
+    for (const db of [0, -3, -6, -10, -20, -30, -40, -60]) {
+        const y = yOf(db);
         ctx.fillStyle = GRID;
         ctx.fillRect(x - 3 * dpr, y, w - x, 1);
         ctx.fillStyle = LABEL;
+        ctx.fillText(String(db), x - 6 * dpr, y + 3 * dpr);
     }
 
+    // Peak colours follow the scale: red above -3 dB, yellow above -12 dB, green below
     const peakFill = ctx.createLinearGradient(0, top, 0, bottom);
     peakFill.addColorStop(0, "#f87171");
-    peakFill.addColorStop(0.1, "#facc15");
-    peakFill.addColorStop(0.3, "#4ade80");
+    peakFill.addColorStop(1 - meterScale(-3), "#f87171");
+    peakFill.addColorStop(1 - meterScale(-4), "#facc15");
+    peakFill.addColorStop(1 - meterScale(-12), "#a3e635");
+    peakFill.addColorStop(1 - meterScale(-18), "#4ade80");
     peakFill.addColorStop(1, "#15803d");
     const loudFill = ctx.createLinearGradient(0, top, 0, bottom);
     loudFill.addColorStop(0, "#c4b5fd");
     loudFill.addColorStop(1, "#4f46e5");
 
+    // L/R: 300 ms RMS solid, sample peak faint behind it, peak hold as a line
+    const rmsDb = (ch) => 10 * Math.log10(st.vuPower[ch] || 1e-12);
     const meters = [
-        { label: "L", value: st.peak[0], hold: st.peakHold[0], fill: peakFill },
-        { label: "R", value: st.peak[1], hold: st.peakHold[1], fill: peakFill },
-        { label: "M", value: st.loud.momentary, fill: loudFill },
-        { label: "S", value: st.loud.shortTerm, fill: loudFill },
+        { label: "L", level: rmsDb(0), peak: st.peak[0], hold: st.peakHold[0], fill: peakFill },
+        { label: "R", level: rmsDb(1), peak: st.peak[1], hold: st.peakHold[1], fill: peakFill },
+        { label: "M", level: st.loud.momentary, fill: loudFill },
+        { label: "S", level: st.loud.shortTerm, fill: loudFill },
     ];
     ctx.textAlign = "center";
+    let loudStart = 0;
     meters.forEach((m, i) => {
-        if (i === 2) x += gap * 2;
-        bar(ctx, x, top, bw, bh, m.value, -60, 0, m.fill, m.hold);
+        if (i === 2) {
+            x += gap * 2;
+            loudStart = x;
+        }
+        bar(ctx, x, top, bw, bh, m);
         ctx.fillStyle = LABEL;
         ctx.fillText(m.label, x + bw / 2, h - 5 * dpr);
         x += bw + gap;
     });
+
+    // Reference line across the loudness bars
+    const ry = yOf(LUFS_REFERENCE);
+    ctx.fillStyle = "#fbbf24";
+    for (let dx = loudStart - 2 * dpr; dx < x - gap + 2 * dpr; dx += 4 * dpr) ctx.fillRect(dx, ry, 2 * dpr, Math.max(1, dpr));
+    ctx.font = FONT(dpr, 8);
+    ctx.textAlign = "left";
+    ctx.fillText(String(LUFS_REFERENCE), x - gap + 4 * dpr, ry + 3 * dpr);
+    x += 12 * dpr;
 
     // Readouts
     const tx = x + 14 * dpr;

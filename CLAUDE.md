@@ -211,6 +211,9 @@ wails dev
   waveform, loudness bars and readouts, stereometer with correlation, analogue-style VU dial, triggered
   oscilloscope and a tilted (+4.5 dB/oct) log spectrum with peak hold and a hover readout (dB, Hz, note)
 - Silence comes back from the analyser as -Infinity; floor it before smoothing or the smoothing sticks
+- The loudness bars use the IEC 60268-18 meter scale (`meterScale`: the top 20 dB fill half the height) so loud
+  masters still visibly move; L/R show 300 ms RMS solid with the sample peak faint behind and a hold line,
+  and M/S have a dashed -14 LUFS (streaming normalisation) reference line
 - The scope and stereometer use a slow display auto-gain; numeric meters are never scaled
 - `MetersView.jsx`: layout, one requestAnimationFrame loop, module toggles and spectrogram colour map
   (`meter_modules` and `colormap` in `visuals.json`); integrated loudness resets per track or via Reset
