@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Heart, Repeat, ListMusic, X, Search, Sliders
 import { useAudioPlayer } from "./AudioPlayerContext";
 import { LoadVisualSettings, SaveVisualSettings } from "../wailsjs/go/main/App";
 import MetersView, { METER_MODULES } from "./meters/MetersView";
+import RetroView from "./retro/RetroView";
 
 const CYCLE_SECONDS = 30;
 const MAX_FPS = 60;
@@ -93,7 +94,9 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
                 soften: saved.soften || 0,
                 dim: saved.dim || 0,
                 adjust_open: !!saved.adjust_open,
-                mode: saved.mode === "meters" ? "meters" : "milkdrop",
+                mode: ["meters", "retro"].includes(saved.mode) ? saved.mode : "milkdrop",
+                retro_lamp: saved.retro_lamp === "blue" ? "blue" : "amber",
+                retro_display: saved.retro_display === "green" ? "green" : "cyan",
                 meter_modules: saved.meter_modules ?? METER_MODULES.map((m) => m.id),
                 colormap: saved.colormap || "magma",
                 favorites: (saved.favorites || []).filter((f) => presets[f]),
@@ -127,7 +130,8 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
     // scaled down; many presets also move a fixed amount per frame, so fewer frames are drawn
     // (capped at 60fps, which also stops high-refresh screens running visuals too fast).
     // Soften blends each frame into the last ones, which smooths out strobing.
-    const meters = settings?.mode === "meters";
+    // MilkDrop only renders in Visuals mode; Meters and Retro draw their own canvases
+    const meters = settings?.mode === "meters" || settings?.mode === "retro";
 
     useEffect(() => {
         if (!active || meters) return;
@@ -235,6 +239,7 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
             {[
                 ["milkdrop", "Visuals"],
                 ["meters", "Meters"],
+                ["retro", "Retro"],
             ].map(([id, label]) => (
                 <button
                     key={id}
@@ -255,7 +260,8 @@ export default function PlayPage({ active, playingAlbum, onOpenLibrary, bottomIn
                 <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "opacity-0" : ""}`} />
                 <canvas ref={softCanvasRef} className={`absolute inset-0 h-full w-full ${settings?.soften ? "" : "hidden"}`} />
             </div>
-            {meters && <MetersView active={active} settings={settings} update={update} bottomInset={bottomInset} toolbar={modeSwitch} />}
+            {settings?.mode === "meters" && <MetersView active={active} settings={settings} update={update} bottomInset={bottomInset} toolbar={modeSwitch} />}
+            {settings?.mode === "retro" && <RetroView active={active} settings={settings} update={update} bottomInset={bottomInset} toolbar={modeSwitch} />}
             {!meters && <>
             {settings && <div className="absolute right-6 top-[76px] z-10">{modeSwitch}</div>}
             {/* Soften the edges so the overlay text stays readable over bright presets */}

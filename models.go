@@ -39,9 +39,11 @@ type VisualSettings struct {
 	Soften        float64  `json:"soften"` // 0–1: how much frames blend to calm flashing
 	Dim           float64  `json:"dim"`    // 0–1: how much brightness and colour are muted
 	AdjustOpen    bool     `json:"adjust_open"`
-	Mode          string   `json:"mode"`          // "milkdrop" or "meters"
+	Mode          string   `json:"mode"`          // "milkdrop", "meters" or "retro"
 	MeterModules  []string `json:"meter_modules"` // meters shown in Meters mode; nil means all
 	Colormap      string   `json:"colormap"`      // spectrogram colour map
+	RetroLamp     string   `json:"retro_lamp"`    // Retro mode VU lamps: "amber" or "blue"
+	RetroDisplay  string   `json:"retro_display"` // Retro mode fluorescent display: "cyan" or "green"
 }
 
 // ScanResult summarises a scan of the music folders

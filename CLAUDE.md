@@ -182,8 +182,19 @@ wails dev
   brightness/saturation); all saved in `visuals.json`
 - Note: the Winamp source repo's MilkDrop/AVS code is Win32/DirectX and under the Winamp Collaborative
   License (no distribution of modifications), so it is not used here
-- A Visuals / Meters switch (top right) picks the mode; it is saved as `mode` in `visuals.json`, and MilkDrop
-  stops rendering while Meters is shown
+- A Visuals / Meters / Retro switch (top right) picks the mode; it is saved as `mode` in `visuals.json`, and
+  MilkDrop stops rendering while Meters or Retro is shown
+
+**Retro Mode:** `frontend/src/retro/RetroView.jsx`
+- A 1980s black-glass hi-fi rack drawn on one canvas in a fixed 1000×770 design space scaled to fit:
+  a power amp with two backlit needle VU meters (after the Technics SE-A3), a 14-band 2/3-octave
+  fluorescent spectrum analyser with peak hold (after the Sansui SE-88), and a cassette deck display
+  (track number, scrolling title, time, L/R level ladders). Model names are invented; no real brand marks
+- Reuses the Meters audio taps (`meters/analysis.js`); band power gets a +2.5 dB/octave lift around 1 kHz
+  so the top bands move like the bass
+- Lit fluorescent elements are drawn to an offscreen glow layer, composited blurred ("lighter") then
+  crisp; the glow layer must be resized with the canvas whenever the render loop restarts
+- Options: meter lamps amber/blue and display cyan/green (`retro_lamp`, `retro_display` in `visuals.json`)
 
 **Meters Mode:** `frontend/src/meters/` (inspired by MiniMeters; our own implementation, no MiniMeters code)
 - `analysis.js`: taps the pre-volume source with AnalyserNodes (8192-point FFT; stereo time domain via a
@@ -281,6 +292,7 @@ Audire/
         ├── PlayerBar.jsx
         ├── AudireLogo.jsx
         ├── meters/      # Meters mode (analysis, renderers, view)
+        ├── retro/       # Retro mode (1980s hi-fi rack)
         ├── AlbumInfo.jsx
         ├── CoverPicker.jsx
         └── AboutPage.jsx
