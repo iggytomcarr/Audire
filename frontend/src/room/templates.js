@@ -78,7 +78,29 @@ export const TEMPLATES = [
             it("armchair", 120, 620, 0.9, { colour: "#c99a3a" }, 6),
         ],
     },
+    {
+        id: "evening",
+        name: "Evening",
+        build: () => [
+            it("rug", 520, 740, 1.1, { colour: "#1f3f4a", pattern: "persian" }, 1),
+            it("shelf", 20, 96, 0.8, { cols: 3, rows: 4, cubbies: ["ambient", "electronic", "hiphop", "indie", "rock", "metal", "classical", "jazz", "soul", "soundtrack", "world", "unsorted"] }, 2),
+            it("window", 760, 60, 1.2, { sky: "dusk", curtains: true, curtainColour: "#5a2235" }, 2),
+            it("frame", 600, 140, 0.7, { source: "top", rank: 1, style: "gold" }, 2),
+            it("display", 1330, 110, 0.9, { source: "topIn", category: "jazz" }, 2),
+            it("speaker", 560, 430, 1, { finish: "walnut" }, 3),
+            it("speaker", 1180, 430, 1, { finish: "walnut" }, 3),
+            it("sideboard", 700, 575, 1, {}, 3),
+            it("hifiRack", 715, 456, 0.8, {}, 4),
+            it("turntable", 905, 488, 0.8, {}, 4),
+            it("lavaLamp", 1220, 290, 0.7, { colour: "#ff5f8a" }, 4),
+            it("floorLamp", 1230, 300, 1, { colour: "#ffb866", finish: "brass" }, 5),
+            it("armchair", 1300, 600, 0.95, { colour: "#6b2b3a" }, 6),
+        ],
+    },
 ];
+
+// Templates that every saved set of rooms already had before newer ones were added
+const ORIGINAL_TEMPLATES = ["den", "golden", "daylight", "crate"];
 
 export function roomFromTemplate(templateId, name) {
     const t = TEMPLATES.find((x) => x.id === templateId) || TEMPLATES[0];
@@ -88,5 +110,13 @@ export function roomFromTemplate(templateId, name) {
 // First run: one room from each template, so there are versions to choose from straight away
 export function defaultRooms() {
     const rooms = TEMPLATES.map((t) => roomFromTemplate(t.id));
-    return { version: 1, activeRoomId: rooms[0].id, rooms };
+    return { version: 1, activeRoomId: rooms[0].id, rooms, templates: TEMPLATES.map((t) => t.id) };
+}
+
+// Adds a room for each template added since the rooms were saved, once
+export function withNewTemplates(state) {
+    const seen = state.templates || ORIGINAL_TEMPLATES;
+    const fresh = TEMPLATES.filter((t) => !seen.includes(t.id));
+    if (!fresh.length && state.templates) return state;
+    return { ...state, rooms: [...state.rooms, ...fresh.map((t) => roomFromTemplate(t.id))], templates: TEMPLATES.map((t) => t.id) };
 }

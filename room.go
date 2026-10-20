@@ -111,11 +111,6 @@ var (
 // GatherAllAlbumInfo gathers info for every album in the background, skipping albums that
 // already have it when onlyMissing is set. Progress arrives as "gatherall:progress" events.
 func (a *App) GatherAllAlbumInfo(onlyMissing bool) error {
-	gatherAllMu.Lock()
-	if gatherAllState.Running {
-		gatherAllMu.Unlock()
-		return fmt.Errorf("already gathering")
-	}
 	var todo []Album
 	for _, album := range a.GetAlbums() {
 		if onlyMissing {
@@ -124,6 +119,16 @@ func (a *App) GatherAllAlbumInfo(onlyMissing bool) error {
 			}
 		}
 		todo = append(todo, album)
+	}
+	return a.startGatherRun(todo)
+}
+
+// startGatherRun gathers info for the given albums in the background
+func (a *App) startGatherRun(todo []Album) error {
+	gatherAllMu.Lock()
+	if gatherAllState.Running {
+		gatherAllMu.Unlock()
+		return fmt.Errorf("already gathering")
 	}
 	cancel := make(chan struct{})
 	gatherAllCancel = cancel

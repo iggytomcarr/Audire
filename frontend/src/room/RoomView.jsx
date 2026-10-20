@@ -9,8 +9,8 @@ import { GetPlayStats, LoadRooms, LoadVisualSettings, SaveRooms } from "../../wa
 import { RoomContext, createLevels, measure, useCoverColours } from "./runtime";
 import { ITEM_TYPES, createItem, itemSize, newItemId } from "./registry";
 import { ROOM_THEMES, DEFAULT_THEME } from "./themes";
-import { FLOOR_Y, ROOM_H, ROOM_W, defaultRooms, roomFromTemplate } from "./templates";
-import { categoryName, shelfFor } from "./categories";
+import { FLOOR_Y, ROOM_H, ROOM_W, defaultRooms, roomFromTemplate, withNewTemplates } from "./templates";
+import { artistShelves, categoryName, shelfFor } from "./categories";
 import { displayColours, lampColours, normaliseHex } from "../retro/colours";
 import { AddMenu, PropertiesPanel, RoomMenu } from "./EditorPanels";
 
@@ -86,7 +86,7 @@ export default function RoomView({ active, albums, playingAlbum, onOpenAlbum, on
         LoadRooms()
             .then((json) => {
                 const parsed = json ? JSON.parse(json) : null;
-                setState(parsed?.rooms?.length ? parsed : defaultRooms());
+                setState(parsed?.rooms?.length ? withNewTemplates(parsed) : defaultRooms());
             })
             .catch(() => setState(defaultRooms()));
         LoadVisualSettings()
@@ -144,8 +144,9 @@ export default function RoomView({ active, albums, playingAlbum, onOpenAlbum, on
     const spineColour = useCoverColours(albums);
     const byCategory = useMemo(() => {
         const map = new Map();
+        const artists = artistShelves(albums);
         [...albums].sort((a, b) => `${a.artist} ${a.year} ${a.title}`.localeCompare(`${b.artist} ${b.year} ${b.title}`)).forEach((a) => {
-            const c = shelfFor(a);
+            const c = shelfFor(a, artists);
             if (!map.has(c)) map.set(c, []);
             map.get(c).push(a);
         });

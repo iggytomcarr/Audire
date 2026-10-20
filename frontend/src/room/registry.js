@@ -8,9 +8,10 @@ import Speaker from "./items/Speaker";
 import LavaLamp from "./items/LavaLamp";
 import { DisplayItem, FrameItem } from "./items/Frames";
 import { ArmchairItem, PlantItem, RugItem, SideboardItem } from "./items/Furniture";
+import { FloorLampItem, WindowItem } from "./items/Evening";
 
 export const ITEM_TYPES = Object.fromEntries(
-    [Shelf, Turntable, HifiRack, Speaker, LavaLamp, FrameItem, DisplayItem, SideboardItem, ArmchairItem, RugItem, PlantItem].map((t) => [t.type, t])
+    [Shelf, Turntable, HifiRack, Speaker, LavaLamp, FrameItem, DisplayItem, SideboardItem, ArmchairItem, RugItem, PlantItem, WindowItem, FloorLampItem].map((t) => [t.type, t])
 );
 
 // Size of an item in room units (its type's natural size times its scale)

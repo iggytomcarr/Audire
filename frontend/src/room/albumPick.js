@@ -1,7 +1,5 @@
 // Which album a frame or display shows: a chosen album, "my most played #N", or the most
 // played album on a given shelf (falling back to the first album there before anything is played).
-import { shelfFor } from "./categories";
-
 export const ALBUM_SOURCE_FIELDS = (withShelf) => [
     {
         key: "source",
@@ -19,10 +17,10 @@ export const ALBUM_SOURCE_FIELDS = (withShelf) => [
 ];
 
 export function pickAlbum(props, room) {
-    const { albums, mostPlayed, stats } = room;
+    const { albums, byCategory, mostPlayed, stats } = room;
     if (props.source === "album") return albums.find((a) => a.id === props.albumId) || null;
     if (props.source === "topIn") {
-        const onShelf = albums.filter((a) => shelfFor(a) === props.category);
+        const onShelf = byCategory.get(props.category) || [];
         const played = onShelf.filter((a) => stats[a.id]?.plays).sort((a, b) => stats[b.id].plays - stats[a.id].plays);
         return played[0] || onShelf[0] || null;
     }

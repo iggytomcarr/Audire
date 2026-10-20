@@ -80,7 +80,12 @@ wails dev
 - `LoadEmbeddedAlbums()`: Loads the sample album data from embedded `data/albums.json` (no longer used by the UI)
 
 **Library Scanner:** `library.go`
-- Walks the music folders and turns each folder of audio files into an album (disc sub-folders like `CD 1` are merged)
+- Walks the music folders and turns each folder of audio files into an album (disc sub-folders like `CD 1`,
+  `CD1 ORIGINAL ALBUM` or `2008 - Disc 1`, and a plain `Music` sub-folder, are merged into the album above)
+- Discography downloads are nested: the artist comes from the nearest meaningful parent folder, skipping
+  organiser folders (`1 Studio`, `Live`, `Singles & EP`, `5 Other albums and Bootlegs`, ...) and stripping
+  collection words (`Discography 1968-2007`, `Studio albums`, `7 Albums`, `24bit Vinyl Pack`) and aliases
+  (`Richard D. James as Aphex Twin`); bitrate tags like `@320` are dropped from names
 - Artist/album/year/track titles are parsed from folder and file names; it never opens audio files,
   so cloud placeholders (Dropbox online-only files) are not downloaded by a scan
 - The only file it reads is each album's `audire.json` sidecar, whose gathered info and user edits are layered
@@ -106,13 +111,31 @@ wails dev
 - AllMusic blocks non-browser clients (Cloudflare), so its link is stored and opened in the browser only;
   do not try to scrape it
 - Links the user edited are used as given on refresh; the rest are re-derived from MusicBrainz
+- Search results are only accepted when the title and artist resemble the album's (`matchesAlbum`: brackets,
+  accents and punctuation ignored; equal, 60% word overlap, or one inside the other as whole words when it
+  starts the other (a subtitle) or is at least half of it; Various Artists and surname credits in
+  collaborations like "Fripp & Eno" count; with no artist the title must be exact). Never take the top hit on
+  score alone: free-text search once matched "Vol.4 @320" to a noise release called "320", and containment
+  matched a Black Sabbath tribute to Jazz Sabbath's "Black Sabbath"
+- Among passing results the one closest to the folder's year wins (namesakes: Burial's "Burial" vs a death
+  metal band's)
+- Albums with no genres on MusicBrainz take the artist's genres
 - Progress is sent to the UI with the `gather:progress` event
+
+**Re-calibration:** `recalibrate.go`
+- `RecalibrateLibrary()` rescans, clears gathered info and derived links that fail `matchesAlbum` or were first
+  released more than two years after the folder's year (keeping the
+  user's edits, hand-set links and cover record), deletes leftover `audire.json` files in disc sub-folders, and
+  re-gathers every album without info in the background (the same runner and events as gather-all)
 
 **Covers:** `covers.go`
 - `FindCoverCandidates()` searches Cover Art Archive (when matched on MusicBrainz), Apple Music (iTunes Search API)
   and Deezer
 - `SaveCover()` downloads the chosen image (must be JPEG/PNG/WebP/GIF), renames any existing `cover.*` to
   `cover (previous).*` and writes `cover.<ext>` into the album folder
+- `coverProblem()` flags covers that are missing, under 600 px or not square (gatefold/booklet scans);
+  `betterCover()` picks a verified square replacement (Apple Music at up to 3000 px, then Cover Art Archive,
+  then Deezer), measuring each image before choosing
 
 **Media Server:** `media.go`
 - Loopback-only HTTP server on a random port serving `/audio?path=` and `/cover?path=`
@@ -221,11 +244,15 @@ wails dev
 - Objects: record shelf (cubbies per category; spines; the shelf's most played album face-out), turntable
   (spins while playing with the playing cover as its label), mini hi-fi rack (Retro colours), speaker (woofer
   follows the bass), lava lamp, framed cover and record on a stand (show a chosen album, most played #N, or a
-  shelf's most played; `albumPick.js`), sideboard, lounge chair, rug, plant
+  shelf's most played; `albumPick.js`), sideboard, lounge chair, rug, plant, window (dusk or night sky over a
+  skyline, stars twinkle with the treble, optional curtains) and arc floor lamp (its light breathes with the bass)
 - `categories.js`: shelves are genre families; an album uses its `shelf` override (Shelf in the album edit
-  form, stored in `audire.json`) or the first family its genres match, else Unsorted
-- `templates.js`: four starter rooms (Navy den, Golden hour, Daylight, Record room); all four are created on
-  first run. Rooms can be switched, created from a template, renamed, duplicated and deleted; Edit room
+  form, stored in `audire.json`) or the first family its genres match (hard rock counts as Metal), else a
+  soundtrack or classical word in its name, else the shelf most of the same artist's albums are on
+  (`artistShelves`), else Unsorted
+- `templates.js`: five starter rooms (Navy den, Golden hour, Daylight, Record room, Evening); all are created on
+  first run, and `withNewTemplates` adds a room for any template added since the rooms were saved (the
+  saved `templates` list records which have been offered). Rooms can be switched, created from a template, renamed, duplicated and deleted; Edit room
   allows drag to move, corner-drag to resize, layer order, duplicate, delete (also Delete key) and themes
   (`themes.js`). Clicking a shelf opens its crate; clicking a sleeve opens the album
 - `room.go`: `RecordPlay`/`GetPlayStats`, `LoadRooms`/`SaveRooms`, and `GatherAllAlbumInfo` (background,
@@ -309,6 +336,7 @@ Audire/
 ├── covers.go            # Cover search and saving into album folders
 ├── window.go            # Remember window size/position per screen setup
 ├── room.go              # Play counts, rooms storage and gather-all for the Room view
+├── recalibrate.go       # One-pass fix-up: rescan, drop wrong matches, re-gather
 ├── tools/appicon/       # `go run ./tools/appicon` draws build/appicon.png and build/windows/icon.ico
 ├── go.mod               # Go dependencies
 ├── wails.json           # Wails configuration

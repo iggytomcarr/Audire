@@ -193,8 +193,20 @@ export default function App() {
                 <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-3">
                     {/* Brand */}
                     <div className="flex items-center gap-3">
-                        <AudireLogo className="h-8 w-auto" />
-                        {/*<div className="text-lg font-semibold tracking-wide">Audire Music Player</div>*/}
+                        {/* The logo goes home: the library overview, top of the page, search cleared */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setQuery("");
+                                delete scrollPositions.current.library;
+                                navigate("library", { exact: true });
+                            }}
+                            title="Library"
+                            aria-label="Audire home"
+                            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                        >
+                            <AudireLogo className="h-8 w-auto" />
+                        </button>
                     </div>
 
                     {/* Search */}

@@ -50,15 +50,24 @@ var (
 	reNoiseTokens   = regexp.MustCompile(`(?i)\b(flac|mp3|\d+\s*kbps|v0|v2|\d+\s*-?bit(\s*-?\s*\d+(\.\d+)?\s*khz)?)\b`)
 	reYearSeparator = regexp.MustCompile(`\s+\(((?:19|20)\d{2})\)\s+(\w)`)
 	reParens        = regexp.MustCompile(`\(([^()]*)\)`)
-	reParenNoise    = regexp.MustCompile(`(?i)^\s*((?:19|20)\d{2}\s*,?\s*)?(.*\b(remaster(ed)?|reissue|rm|lp|vinyl|180g|deluxe|web|edition)\b.*|\d+\s*cds?|(cd|disc|disk)\s*\d+|\d+(\.\d+)?|(?:19|20)\d{2}|)\s*$`)
-	reLeadingYear   = regexp.MustCompile(`^((?:19|20)\d{2})\s*[-.]?\s+`)
-	reYear          = regexp.MustCompile(`\b((?:19[5-9]|20[0-4])\d)\b`)
-	reDashSplit     = regexp.MustCompile(`\s+-\s+`)
-	reYearsOnly     = regexp.MustCompile(`^[\d,\s]+$`)
-	reCollection    = regexp.MustCompile(`(?i)\s+(vinyl pack|discography)$`)
-	reDiscFolder    = regexp.MustCompile(`(?i)^(cd|disc|disk)\s*\d+$`)
-	reTrackNumber   = regexp.MustCompile(`^(\d-\d{1,3}|[A-Da-d]?\d{1,3})([\s._-]+)(.+)$`)
-	reSpaces        = regexp.MustCompile(`\s+`)
+	reParenNoise    = regexp.MustCompile(`(?i)^\s*((?:19|20)\d{2}\s*,?\s*)?(.*\b(remaster(ed)?|reissue|rm|lp|vinyl|180g|deluxe|web|edition|expanded|anniversary|albums?|discography|bonus|flac|mp3)\b.*|\d+\s*cds?|(cd|disc|disk)\s*\d+|\d+(\.\d+)?|(?:19|20)\d{2}|(?:19|20)\d{2}\s*[-–]\s*((?:19|20)\d{2}|present)|.*\d{6,}.*|)\s*$`)
+	// Bitrate tags such as "@320" or "@V0", and format suffixes such as "FLAC 88"
+	reBitrateTag  = regexp.MustCompile(`(?i)\s*@\s*(\d+\s*(kbps)?|v\d)\b|\b(flac|mp3)\s+\d{2,3}\b`)
+	reLeadingYear = regexp.MustCompile(`^((?:19|20)\d{2})\s*[-.]?\s+`)
+	reYear        = regexp.MustCompile(`\b((?:19[5-9]|20[0-4])\d)\b`)
+	reDashSplit   = regexp.MustCompile(`\s+-\s+`)
+	reYearsOnly   = regexp.MustCompile(`^[\d,\s]+$`)
+	// Words that make a folder name a collection rather than an artist: "Brian Eno Albums",
+	// "Kraftwerk Studio albums", "Deftones Discography 1993-2020", "Elliott Smith Vinyl Pack"
+	reCollection = regexp.MustCompile(`(?i)\s*[-–]?\s*\b(\d+\s+albums?|studio albums?|albums?|(complete\s+)?discography|vinyl pack|collection|anthology|box set)\b.*$`)
+	// "Richard D. James as Aphex Twin" is filed under Aphex Twin
+	reAlias = regexp.MustCompile(`(?i)^.+?\s+as\s+(.+)$`)
+	// Folders that organise a discography rather than name anything: "1 Studio", "2 Live",
+	// "3 Compilations", "5 Other albums and Bootlegs"
+	reOrganiser   = regexp.MustCompile(`(?i)^\d*\s*[-.]?\s*(studio( albums?)?|albums?|live( albums?)?|compilations?|singles?(\s*(and|&)\s*eps?)?|eps?|tribute( discs?| albums?)?|bootlegs?|demos?|other\b.*|misc.*|box sets?|rarities)$`)
+	reDiscFolder  = regexp.MustCompile(`(?i)^((19|20)\d{2}\s*[-–.]?\s*)?(cd|disc|disk)\s*\d+\b.*$`)
+	reTrackNumber = regexp.MustCompile(`^(\d-\d{1,3}|[A-Da-d]?\d{1,3})([\s._-]+)(.+)$`)
+	reSpaces      = regexp.MustCompile(`\s+`)
 )
 
 // genericFolders never name an artist.
@@ -118,7 +127,8 @@ func ScanFolders(folders []string) ScanResult {
 			seen[key] = true
 
 			albumDir := filepath.Dir(path)
-			if albumDir != root && reDiscFolder.MatchString(filepath.Base(albumDir)) {
+			// Disc folders, and a plain "Music" folder holding the tracks, belong to the album above
+			if base := filepath.Base(albumDir); albumDir != root && (reDiscFolder.MatchString(base) || strings.EqualFold(base, "music")) {
 				albumDir = filepath.Dir(albumDir)
 			}
 			g := groups[strings.ToLower(albumDir)]
@@ -190,7 +200,12 @@ func buildAlbum(g *albumGroup) Album {
 		artist, title, year = parseFolderName(filepath.Base(g.dir))
 		// In "Sacaea/Jan 2003 - Mar 2003" the dash is part of the album name
 		if parent := ancestorArtist(g.dir, g.root); parent != "" && artist != "" && !strings.EqualFold(artist, parent) {
-			artist, title = parent, artist+" - "+title
+			if strings.Contains(strings.ToLower(artist), strings.ToLower(parent)) {
+				// "Black Sabbath (Tony Martin) - Black Moon" or "Lady June & Brian Eno - ..." in the artist's folder
+				artist = parent
+			} else {
+				artist, title = parent, artist+" - "+title
+			}
 		}
 	}
 	if artist == "" {
@@ -256,6 +271,7 @@ func parseFolderName(name string) (artist, album string, year int) {
 	s := normaliseUnderscores(name)
 	s = reBrackets.ReplaceAllString(s, " ")
 	s = reHashTag.ReplaceAllString(s, "")
+	s = reBitrateTag.ReplaceAllString(s, " ")
 	s = strings.Map(func(r rune) rune {
 		if unicode.Is(unicode.So, r) || r == '️' {
 			return -1
@@ -295,14 +311,16 @@ func parseFolderName(name string) (artist, album string, year int) {
 func ancestorArtist(dir, root string) string {
 	for p := filepath.Dir(dir); len(p) > len(root) && strings.HasPrefix(strings.ToLower(p), strings.ToLower(root)); p = filepath.Dir(p) {
 		base := filepath.Base(p)
-		if genericFolders[strings.ToLower(base)] || reDiscFolder.MatchString(base) {
+		if genericFolders[strings.ToLower(base)] || reDiscFolder.MatchString(base) || reOrganiser.MatchString(cleanSpaces(base)) {
 			continue
 		}
 		artist, album, _ := parseFolderName(base)
 		if artist == "" {
 			artist = album
 		}
-		if artist = reCollection.ReplaceAllString(artist, ""); artist != "" {
+		artist = strings.TrimSpace(reCollection.ReplaceAllString(artist, ""))
+		artist = reAlias.ReplaceAllString(artist, "$1")
+		if artist != "" {
 			return artist
 		}
 	}

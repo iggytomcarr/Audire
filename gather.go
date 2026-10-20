@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,8 +59,13 @@ func getJSON(rawURL string, v any) error {
 		if err != nil {
 			return err
 		}
-		if resp.StatusCode == http.StatusServiceUnavailable && attempt < 3 {
-			time.Sleep(2 * time.Second) // rate limited; back off and retry
+		if (resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode == http.StatusTooManyRequests) && attempt < 5 {
+			// Rate limited or busy: wait as asked, or back off 2, 4, 8, 16, 32 s
+			wait := time.Duration(2<<attempt) * time.Second
+			if s, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && s > 0 && s <= 60 {
+				wait = time.Duration(s) * time.Second
+			}
+			time.Sleep(wait)
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -114,27 +120,158 @@ func luceneQuote(s string) string {
 	return `"` + reLuceneSpecial.ReplaceAllString(s, `\$1`) + `"`
 }
 
-// searchReleaseGroup finds the MusicBrainz release group for an album, or "" if unsure
-func searchReleaseGroup(artist, album string) (string, error) {
+// searchReleaseGroup finds the MusicBrainz release group for an album, or "" if unsure.
+// A result is only taken when its title and artist really resemble ours, since the
+// search engine happily returns a release called "320" for "Vol.4 @320".
+// When several results pass, the one released closest to year (if known) wins, so Burial's
+// 2006 "Burial" beats a death metal band's album of the same name.
+func searchReleaseGroup(artist, album string, year int) (string, error) {
 	queries := []string{
 		"releasegroup:" + luceneQuote(album) + " AND artist:" + luceneQuote(artist),
 		reLuceneSpecial.ReplaceAllString(album+" "+artist, " "),
 	}
-	if artist == "" || artist == "Unknown Artist" {
+	if !knownArtist(artist) {
 		queries = []string{"releasegroup:" + luceneQuote(album)}
 	}
 	for _, q := range queries {
 		var res struct {
 			ReleaseGroups []mbReleaseGroup `json:"release-groups"`
 		}
-		if err := getJSON("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=5&query="+url.QueryEscape(q), &res); err != nil {
+		if err := getJSON("https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=10&query="+url.QueryEscape(q), &res); err != nil {
 			return "", err
 		}
-		if len(res.ReleaseGroups) > 0 && res.ReleaseGroups[0].Score >= 85 {
-			return res.ReleaseGroups[0].ID, nil
+		best, bestGap := "", 0
+		for _, rg := range res.ReleaseGroups {
+			if rg.Score < 60 || !matchesAlbum(rg.Title, creditNames(rg.ArtistCredit), artist, album) {
+				continue
+			}
+			gap := 0
+			if y := yearOf(rg.FirstReleaseDate); year > 0 && y > 0 {
+				gap = max(y-year, year-y)
+			}
+			if best == "" || gap < bestGap {
+				best, bestGap = rg.ID, gap
+			}
+		}
+		if best != "" {
+			return best, nil
 		}
 	}
 	return "", nil
+}
+
+// yearOf reads the year from a MusicBrainz date such as "1972-09-25", or 0
+func yearOf(date string) int {
+	if len(date) < 4 {
+		return 0
+	}
+	y, _ := strconv.Atoi(date[:4])
+	return y
+}
+
+func knownArtist(artist string) bool {
+	return artist != "" && artist != "Unknown Artist"
+}
+
+func creditNames(credits []mbArtistCredit) string {
+	var names []string
+	for _, c := range credits {
+		names = append(names, c.Name, c.Artist.Name)
+	}
+	if len(credits) > 1 {
+		return strings.Join(names, " & ")
+	}
+	return strings.Join(names, " / ")
+}
+
+var (
+	reMatchBrackets = regexp.MustCompile(`\([^)]*\)|\[[^\]]*\]`)
+	reMatchNonWord  = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+)
+
+// accentFolder lets "La Fête sauvage" match a folder named "La fete sauvage"
+var accentFolder = strings.NewReplacer(
+	"à", "a", "á", "a", "â", "a", "ã", "a", "ä", "a", "å", "a", "æ", "ae", "ç", "c",
+	"è", "e", "é", "e", "ê", "e", "ë", "e", "ì", "i", "í", "i", "î", "i", "ï", "i",
+	"ñ", "n", "ò", "o", "ó", "o", "ô", "o", "õ", "o", "ö", "o", "ø", "o", "œ", "oe",
+	"ù", "u", "ú", "u", "û", "u", "ü", "u", "ý", "y", "ÿ", "y", "ß", "ss", "’", "'",
+)
+
+// matchKey reduces a title to comparable words: "The Bends (Deluxe)" -> "bends"
+func matchKey(s string) string {
+	s = accentFolder.Replace(strings.ToLower(s))
+	if stripped := strings.TrimSpace(reMatchBrackets.ReplaceAllString(s, " ")); stripped != "" {
+		s = stripped
+	}
+	s = strings.ReplaceAll(s, "&", " and ")
+	s = strings.TrimSpace(reMatchNonWord.ReplaceAllString(s, " "))
+	return strings.TrimPrefix(s, "the ")
+}
+
+// similar reports whether two names are the same allowing for extra words or punctuation
+func similar(a, b string) bool {
+	a, b = matchKey(a), matchKey(b)
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	wa, wb := strings.Fields(a), strings.Fields(b)
+	// One inside the other (as whole words) counts when it starts the other, as with a
+	// subtitle ("antarctica" / "antarctica music from the film"), or is a good part of it
+	// ("vol 4" / "black sabbath vol 4"); but not "black sabbath" at the end of
+	// "nativity in black a tribute to black sabbath"
+	short, long := a, b
+	if len(wa) > len(wb) || len(wa) == len(wb) && len(a) > len(b) {
+		short, long = b, a
+	}
+	if len(short) >= 3 && strings.Contains(" "+long+" ", " "+short+" ") &&
+		(strings.HasPrefix(long+" ", short+" ") || 2*min(len(wa), len(wb)) >= max(len(wa), len(wb))) {
+		return true
+	}
+	set := map[string]bool{}
+	for _, w := range wa {
+		set[w] = true
+	}
+	shared, union := 0, len(set)
+	for _, w := range wb {
+		if set[w] {
+			shared++
+			delete(set, w)
+		} else {
+			union++
+		}
+	}
+	return union > 0 && float64(shared)/float64(union) >= 0.6
+}
+
+// matchesAlbum checks a MusicBrainz title and artist credit against the album's own names
+func matchesAlbum(mbTitle, mbArtist, artist, album string) bool {
+	if !knownArtist(artist) {
+		// With no artist to check, only an exact title will do
+		return matchKey(mbTitle) != "" && matchKey(mbTitle) == matchKey(album)
+	}
+	if !similar(mbTitle, album) {
+		return false
+	}
+	// Tribute albums and compilations are credited to Various Artists
+	if similar(mbArtist, artist) || strings.HasPrefix(matchKey(mbArtist), "various artists") {
+		return true
+	}
+	// Collaborations credit surnames, e.g. "Fripp & Eno" for Brian Eno (but "Jazz Sabbath"
+	// is not Black Sabbath)
+	words := strings.Fields(matchKey(artist))
+	if len(words) == 0 || !strings.ContainsAny(mbArtist, "&,") && !strings.Contains(strings.ToLower(mbArtist), " and ") {
+		return false
+	}
+	last := words[len(words)-1]
+	for _, w := range strings.Fields(matchKey(mbArtist)) {
+		if len(last) >= 3 && w == last {
+			return true
+		}
+	}
+	return false
 }
 
 var reMBID = regexp.MustCompile(`([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})`)
@@ -536,7 +673,9 @@ func (a *App) GatherAlbumInfo(albumID string) (*AlbumSidecar, error) {
 	progress("Finding the album on MusicBrainz…")
 	rgID := mbIDFromURL(src.MusicBrainz, "release-group")
 	if rgID == "" && !src.isEdited("musicbrainz") {
-		if rgID, err = searchReleaseGroup(album.Artist, album.Album); err != nil {
+		// The folder's own year, since album.Year may come from an earlier (possibly wrong) match
+		_, _, year := parseFolderName(filepath.Base(album.Path))
+		if rgID, err = searchReleaseGroup(album.Artist, album.Album, year); err != nil {
 			return nil, err
 		}
 	}
@@ -578,9 +717,23 @@ func (a *App) GatherAlbumInfo(albumID string) (*AlbumSidecar, error) {
 	if artistID := mbIDFromURL(src.MusicBrainzArtist, "artist"); artistID != "" {
 		var artist struct {
 			Relations []mbRelation `json:"relations"`
+			Genres    []struct {
+				Name  string `json:"name"`
+				Count int    `json:"count"`
+			} `json:"genres"`
 		}
-		if err := getJSON("https://musicbrainz.org/ws/2/artist/"+artistID+"?fmt=json&inc=url-rels", &artist); err == nil {
+		if err := getJSON("https://musicbrainz.org/ws/2/artist/"+artistID+"?fmt=json&inc=url-rels+genres", &artist); err == nil {
 			src.setDerived("wikipedia_artist", &src.WikipediaArtist, wikipediaFromRelations(artist.Relations))
+			// Less-known albums often have no genres of their own; the artist's are a fair guess
+			if len(info.Genres) == 0 {
+				sort.SliceStable(artist.Genres, func(i, j int) bool { return artist.Genres[i].Count > artist.Genres[j].Count })
+				for i, g := range artist.Genres {
+					if i == 4 {
+						break
+					}
+					info.Genres = append(info.Genres, titleCase(g.Name))
+				}
+			}
 		}
 		progress("Fetching the discography…")
 		if info.Discography, err = discography(artistID); err != nil {

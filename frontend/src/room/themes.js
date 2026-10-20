@@ -47,6 +47,17 @@ export const ROOM_THEMES = {
         shelf: "#151413",
         text: "#fff7e6",
     },
+    evening: {
+        name: "Evening",
+        wall: ["#2a2140", "#1b1530"],
+        floor: ["#4a3226", "#31211a"],
+        skirting: "#130e1d",
+        light: "rgba(255, 160, 100, 0.12)",
+        accent: "#ff9e6b",
+        wood: "#3a2618",
+        shelf: "#22160e",
+        text: "#f6e9ff",
+    },
 };
 
 export const DEFAULT_THEME = "den";

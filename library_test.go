@@ -67,6 +67,44 @@ func TestBuildAlbumNested(t *testing.T) {
 	}
 }
 
+func TestDiscographyCollections(t *testing.T) {
+	root := `G:\Music`
+	cases := []struct {
+		dir, file, artist, album string
+	}{
+		{`G:\Music\Black Sabbath - Discography 1968-2007 Mp3 320kbps\1 Studio\1972 Vol.4 @320`, `01 Wheels Of Confusion.mp3`, "Black Sabbath", "Vol.4"},
+		{`G:\Music\Black Sabbath - Discography 1968-2007 Mp3 320kbps\2 Live\1980 Live at Last @320`, `01 Tomorrow's Dream.mp3`, "Black Sabbath", "Live at Last"},
+		{`G:\Music\Black Sabbath - Discography 1968-2007 Mp3 320kbps\5 Other albums and Bootlegs\1987 Black Sabbath (Tony Martin) - Black Moon (Demo) @320`, `01 Black Moon.mp3`, "Black Sabbath", "Black Moon (Demo)"},
+		{`G:\Music\Kraftwerk Studio albums (1970-2003) [FLAC]\1974 Autobahn`, `01 Autobahn.flac`, "Kraftwerk", "Autobahn"},
+		{`G:\Music\Brian Eno Albums (1973 - 2020) [FLAC]\1978 Ambient 1 Music for Airports`, `01 1-1.flac`, "Brian Eno", "Ambient 1 Music for Airports"},
+		{`G:\Music\Richard D. James as Aphex Twin (Albums 1992 - 2019) [FLAC]\1992 Selected Ambient Works 85-92`, `01 Xtal.flac`, "Aphex Twin", "Selected Ambient Works 85-92"},
+		{`G:\Music\Deftones Discography 1993-2020 [FLAC] vtwin88cube\2000 White Pony`, `01 Feiticeira.flac`, "Deftones", "White Pony"},
+		{`G:\Music\Burial (FLAC)\Singles & EP\(2011) Street Halo [HDB013]`, `01 Street Halo.flac`, "Burial", "Street Halo"},
+		{`G:\Music\Brian Eno Albums (1973 - 2020) [FLAC]\(1974) Lady June & Brian Eno - Lady June's Linguistic Leprosy`, `01 Some Day.flac`, "Brian Eno", "Lady June's Linguistic Leprosy"},
+	}
+	for _, name := range []string{"2008 - Disc 1", "CD2"} {
+		if !reDiscFolder.MatchString(name) {
+			t.Errorf("%q should count as a disc folder", name)
+		}
+	}
+	for _, c := range cases {
+		a := buildAlbum(&albumGroup{dir: c.dir, root: root, files: []string{c.dir + `\` + c.file}})
+		if a.Artist != c.artist || a.Album != c.album {
+			t.Errorf("%s: got %q / %q; want %q / %q", c.dir, a.Artist, a.Album, c.artist, c.album)
+		}
+	}
+
+	// Disc folders with a description are merged into their album
+	dir := `G:\Music\Black Sabbath - Discography 1968-2007 Mp3 320kbps\1 Studio\1970 Black Sabbath (Deluxe Expanded Edition) @320`
+	if !reDiscFolder.MatchString("CD1 ORIGINAL ALBUM") {
+		t.Error("CD1 ORIGINAL ALBUM should count as a disc folder")
+	}
+	a := buildAlbum(&albumGroup{dir: dir, root: root, files: []string{dir + `\CD1 ORIGINAL ALBUM\01 Black Sabbath.mp3`}})
+	if a.Artist != "Black Sabbath" || a.Album != "Black Sabbath" {
+		t.Errorf("deluxe edition: got %q / %q", a.Artist, a.Album)
+	}
+}
+
 func TestNaturalLess(t *testing.T) {
 	if !naturalLess("2 - On The Ice", "10 - Treats") || naturalLess("10 - Treats", "2 - On The Ice") {
 		t.Error("numbers should sort by value")

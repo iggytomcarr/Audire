@@ -2,11 +2,16 @@ package main
 
 import (
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -166,6 +171,92 @@ func (a *App) SaveCover(albumID, imageURL, source string) (Album, error) {
 		_ = writeSidecar(album.Path, sc)
 	}
 	return a.rebuildAlbum(albumID)
+}
+
+// A cover smaller than this on its short side looks soft on the album page and in the room
+const minCoverSide = 600
+
+// coverProblem says what is wrong with an album's cover image, or "" if it looks fine:
+// missing, too small, or not square (usually a scan of the whole gatefold or booklet)
+func coverProblem(path string) string {
+	if path == "" {
+		return "no cover"
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "unreadable"
+	}
+	defer f.Close()
+	cfg, _, err := image.DecodeConfig(f)
+	if err != nil {
+		// WebP and other formats Go can't measure are left alone
+		return ""
+	}
+	w, h := cfg.Width, cfg.Height
+	switch {
+	case min(w, h) < minCoverSide:
+		return fmt.Sprintf("small (%d×%d)", w, h)
+	case float64(max(w, h))/float64(min(w, h)) > 1.12:
+		return fmt.Sprintf("not square (%d×%d)", w, h)
+	}
+	return ""
+}
+
+// betterCover picks the best replacement cover for an album: a square image of at least
+// minCoverSide pixels whose listing matches the album, preferring Apple Music (original
+// artwork at up to 3000 px), then Cover Art Archive (only offered for a verified
+// MusicBrainz match), then Deezer. It returns false when nothing suitable turns up.
+func (a *App) betterCover(albumID string) (CoverCandidate, bool, error) {
+	album, _, err := a.albumByID(albumID)
+	if err != nil {
+		return CoverCandidate{}, false, err
+	}
+	candidates, err := a.FindCoverCandidates(albumID)
+	if err != nil {
+		return CoverCandidate{}, false, err
+	}
+	rank := map[string]int{"Apple Music": 0, "Cover Art Archive": 1, "Deezer": 2}
+	sort.SliceStable(candidates, func(i, j int) bool { return rank[candidates[i].Source] < rank[candidates[j].Source] })
+	for _, c := range candidates {
+		if c.Source != "Cover Art Archive" {
+			artist, title, _ := strings.Cut(c.Label, " – ")
+			if !matchesAlbum(title, artist, album.Artist, album.Album) {
+				continue
+			}
+		}
+		if c.Source == "Apple Music" {
+			c.URL = strings.Replace(c.URL, "1400x1400bb", "3000x3000bb", 1)
+		}
+		w, h, err := remoteImageSize(c.URL)
+		if err != nil || min(w, h) < minCoverSide || float64(max(w, h))/float64(min(w, h)) > 1.05 {
+			continue
+		}
+		c.Size = fmt.Sprintf("%d×%d", w, h)
+		return c, true, nil
+	}
+	return CoverCandidate{}, false, nil
+}
+
+// remoteImageSize reads just enough of an image to learn its dimensions
+func remoteImageSize(imageURL string) (int, int, error) {
+	req, err := http.NewRequest("GET", imageURL, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, 0, fmt.Errorf("%s", resp.Status)
+	}
+	cfg, _, err := image.DecodeConfig(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return 0, 0, err
+	}
+	return cfg.Width, cfg.Height, nil
 }
 
 func firstNonEmpty(values ...string) string {
